@@ -1,0 +1,146 @@
+name: Build Wenzgram Windows Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'cursor/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Wenzgram.exe
+    runs-on: windows-latest
+    timeout-minutes: 180
+
+    env:
+      PREPARE_PATH: Telegram/build/prepare/prepare.py
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories
+        run: |
+          mkdir %userprofile%\TBuild\Libraries\win64
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Checkout Wenzgram
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.TBUILD }}\Wenzgram-src
+
+      - name: Clone Telegram Desktop with submodules
+        shell: bash
+        run: |
+          git clone --recursive --depth 1 -b dev \
+            https://github.com/telegramdesktop/tdesktop.git \
+            "$TBUILD/tdesktop"
+
+      - name: Apply Wenzgram patches
+        shell: bash
+        run: |
+          chmod +x "$TBUILD/Wenzgram-src/scripts/apply-wenzgram-patches.sh"
+          "$TBUILD/Wenzgram-src/scripts/apply-wenzgram-patches.sh" \
+            "$TBUILD/Wenzgram-src/telegram-desktop" \
+            "$TBUILD/tdesktop"
+
+      - name: Read SDK version
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/tdesktop/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+          echo "$(sha256sum $TBUILD/tdesktop/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+      - uses: Eden-CI/msvc-dev-cmd@master
+        name: Native Tools Command Prompt
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: 14.44
+
+      - name: ThirdParty cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: wenzgram-${{ runner.os }}-x64-third-party-${{ env.CACHE_KEY }}
+          restore-keys: wenzgram-${{ runner.os }}-x64-third-party-
+
+      - name: Libraries cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: wenzgram-${{ runner.os }}-x64-libs-${{ env.CACHE_KEY }}
+          restore-keys: wenzgram-${{ runner.os }}-x64-libs-
+
+      - name: Qt cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: wenzgram-${{ runner.os }}-x64-qt6-${{ env.CACHE_KEY }}
+          restore-keys: wenzgram-${{ runner.os }}-x64-qt6-
+
+      - name: Prepare libraries
+        run: |
+          %TBUILD%\tdesktop\Telegram\build\prepare\win.bat skip-release silent qt6
+
+      - name: Build Wenzgram (Release)
+        run: |
+          cd %TBUILD%\tdesktop\Telegram
+          call configure.bat x64 qt6 ^
+            -D TDESKTOP_API_TEST=ON ^
+            -D CMAKE_CONFIGURATION_TYPES=Release ^
+            -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
+            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+          cmake --build ..\out --config Release --parallel
+
+      - name: Package artifact
+        run: |
+          set OUT=%TBUILD%\tdesktop\out\Release
+          mkdir artifact
+          copy /Y %OUT%\Telegram.exe artifact\Wenzgram.exe
+          copy /Y %OUT%\Updater.exe artifact\Updater.exe
+          echo Wenzgram Windows x64 build > artifact\README.txt
+          echo Built from %GITHUB_SHA% >> artifact\README.txt
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wenzgram-Windows-x64
+          path: artifact\
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/cursor/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v0.1.0-session-protection"
+          TITLE="Wenzgram 0.1.0 — Session Protection (Windows x64)"
+          NOTES="Сборка Wenzgram с защитой сессии (привязка tdata к устройству).\n\n- Wenzgram.exe — основной клиент\n- Updater.exe — обновлятор\n\nСобрано автоматически из ветки ${GITHUB_REF_NAME} (${GITHUB_SHA:0:7})."
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifact/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" artifact/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TITLE" \
+              --notes "$NOTES"
+          fi
