@@ -50,6 +50,21 @@ jobs:
           "$TBUILD/Wenzgram-src/scripts/apply-wenzgram-patches.sh" \
             "$TBUILD/Wenzgram-src/telegram-desktop" \
             "$TBUILD/tdesktop"
+          python3 - <<PY
+          from pathlib import Path
+          path = Path("$TBUILD/tdesktop/Telegram/build/prepare/prepare.py")
+          text = path.read_text(encoding="utf-8")
+          old = (
+              '    cd tools\\\\windows\\\\dump_syms\n'
+              '    gyp dump_syms.gyp --format=msvs\n'
+              '    msbuild -m dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64" %ToolsetProp%'
+          )
+          new = '    REM dump_syms skipped in CI (ATL/MFC not required for Telegram binary)'
+          if old not in text:
+              raise SystemExit('prepare.py breakpad patch target not found')
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          print('Patched prepare.py: skipped dump_syms build')
+          PY
 
       - name: Read SDK version and fix CMake
         shell: bash
@@ -69,20 +84,6 @@ jobs:
           arch: x64
           sdk: ${{ env.SDK }}
           toolset: 14.44
-
-      - name: Install ATL/MFC for breakpad (Release prepare)
-        shell: pwsh
-        run: |
-          $installPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-          $proc = Start-Process -FilePath $installer -Wait -PassThru -ArgumentList @(
-            'modify',
-            '--installPath', $installPath,
-            '--add', 'Microsoft.VisualStudio.Component.VC.ATLMFC',
-            '--add', 'Microsoft.VisualStudio.Component.VC.ATL',
-            '--quiet', '--norestart', '--wait'
-          )
-          if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) { exit $proc.ExitCode }
 
       - name: NuGet sources
         run: |
