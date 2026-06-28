@@ -26,15 +26,31 @@ jobs:
 
     steps:
       - name: Free disk space on runner
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+        shell: pwsh
+        run: |
+          function Remove-IfExists($path) {
+            if (Test-Path $path) {
+              Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+          Remove-IfExists "$env:ProgramFiles\Android"
+          Remove-IfExists "$env:ProgramFiles (x86)\Android"
+          Remove-IfExists "$env:LOCALAPPDATA\Android"
+          Remove-IfExists "$env:ProgramFiles\MongoDB"
+          Remove-IfExists "$env:ProgramFiles\MySQL"
+          Remove-IfExists "$env:ProgramFiles\Microsoft SQL Server"
+          Remove-IfExists "$env:ProgramFiles\dotnet\shared"
+          Remove-IfExists "$env:ProgramFiles\Git\mingw64"
+          Remove-IfExists "$env:AGENT_TOOLSDIRECTORY\Ruby"
+          Remove-IfExists "$env:AGENT_TOOLSDIRECTORY\go"
+          Remove-IfExists "$env:AGENT_TOOLSDIRECTORY\Python"
+          Remove-IfExists "$env:AGENT_TOOLSDIRECTORY\node"
+          Remove-IfExists "C:\tools\Android"
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Lib" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch '10\.0\.26100' } |
+            ForEach-Object { Remove-IfExists $_.FullName }
+          dism.exe /Online /Quiet /Cleanup-Image /StartComponentCleanup /ResetBase
+          Get-PSDrive C | Select-Object Used,Free
 
       - name: Prepare directories
         run: |
@@ -46,12 +62,6 @@ jobs:
       - name: Checkout Wenzgram
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            scripts
-            telegram-desktop/Telegram/SourceFiles/storage
-            telegram-desktop/Telegram/SourceFiles/core
-            telegram-desktop/Telegram/SourceFiles/window
-            telegram-desktop/Telegram/CMakeLists.txt
           path: ${{ env.TBUILD }}\Wenzgram-src
 
       - name: Clone Telegram Desktop with submodules
