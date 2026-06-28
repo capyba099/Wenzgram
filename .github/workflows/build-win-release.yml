@@ -14,7 +14,7 @@ jobs:
   build-windows:
     name: Build Wenzgram.exe
     runs-on: windows-latest
-    timeout-minutes: 240
+    timeout-minutes: 300
 
     env:
       PREPARE_PATH: Telegram/build/prepare/prepare.py
@@ -25,6 +25,17 @@ jobs:
         shell: cmd
 
     steps:
+      - name: Free disk space on runner
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
       - name: Prepare directories
         run: |
           mkdir %userprofile%\TBuild\Libraries\win64
@@ -35,6 +46,12 @@ jobs:
       - name: Checkout Wenzgram
         uses: actions/checkout@v4
         with:
+          sparse-checkout: |
+            scripts
+            telegram-desktop/Telegram/SourceFiles/storage
+            telegram-desktop/Telegram/SourceFiles/core
+            telegram-desktop/Telegram/SourceFiles/window
+            telegram-desktop/Telegram/CMakeLists.txt
           path: ${{ env.TBUILD }}\Wenzgram-src
 
       - name: Clone Telegram Desktop with submodules
@@ -106,6 +123,17 @@ jobs:
       - name: Prepare libraries
         run: |
           %TBUILD%\tdesktop\Telegram\build\prepare\win.bat skip-release silent qt6
+
+      - name: Free disk space after prepare
+        shell: bash
+        run: |
+          echo "Disk before cleanup:"
+          df -h /c /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
+          find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
+          rm -rf "$TBUILD/ThirdParty"/*/build "$TBUILD/ThirdParty"/*/.git 2>/dev/null || true
+          rm -rf "$TBUILD/tdesktop/.git" "$TBUILD/Wenzgram-src/.git" 2>/dev/null || true
+          echo "Disk after cleanup:"
+          df -h /c /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
 
       - name: Build Wenzgram
         run: |
