@@ -70,6 +70,20 @@ jobs:
           sdk: ${{ env.SDK }}
           toolset: 14.44
 
+      - name: Install ATL/MFC for breakpad (Release prepare)
+        shell: pwsh
+        run: |
+          $installPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+          $proc = Start-Process -FilePath $installer -Wait -PassThru -ArgumentList @(
+            'modify',
+            '--installPath', $installPath,
+            '--add', 'Microsoft.VisualStudio.Component.VC.ATLMFC',
+            '--add', 'Microsoft.VisualStudio.Component.VC.ATL',
+            '--quiet', '--norestart', '--wait'
+          )
+          if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) { exit $proc.ExitCode }
+
       - name: NuGet sources
         run: |
           nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
@@ -79,8 +93,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.TBUILD }}\ThirdParty
-          key: wenzgram-release-${{ runner.os }}-x64-third-party-${{ env.CACHE_KEY }}
-          restore-keys: wenzgram-release-${{ runner.os }}-x64-third-party-
+          key: wenzgram-${{ runner.os }}-x64-third-party-${{ env.CACHE_KEY }}
+          restore-keys: |
+            wenzgram-${{ runner.os }}-x64-third-party-${{ env.CACHE_KEY }}
+            wenzgram-${{ runner.os }}-x64-third-party-
 
       - name: Libraries cache
         uses: actions/cache@v4
@@ -91,8 +107,11 @@ jobs:
             !${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: wenzgram-release-${{ runner.os }}-x64-libs-${{ env.CACHE_KEY }}
-          restore-keys: wenzgram-release-${{ runner.os }}-x64-libs-
+          key: wenzgram-${{ runner.os }}-x64-libs-${{ env.CACHE_KEY }}
+          restore-keys: |
+            wenzgram-${{ runner.os }}-x64-libs-${{ env.CACHE_KEY }}
+            wenzgram-${{ runner.os }}-x64-libs-
+            wenzgram-release-${{ runner.os }}-x64-libs-
 
       - name: Qt cache
         uses: actions/cache@v4
@@ -100,8 +119,11 @@ jobs:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: wenzgram-release-${{ runner.os }}-x64-qt6-${{ env.CACHE_KEY }}
-          restore-keys: wenzgram-release-${{ runner.os }}-x64-qt6-
+          key: wenzgram-${{ runner.os }}-x64-qt6-${{ env.CACHE_KEY }}
+          restore-keys: |
+            wenzgram-${{ runner.os }}-x64-qt6-${{ env.CACHE_KEY }}
+            wenzgram-${{ runner.os }}-x64-qt6-
+            wenzgram-release-${{ runner.os }}-x64-qt6-
 
       - name: Prepare libraries (Debug + Release)
         run: |
