@@ -50,21 +50,11 @@ jobs:
           "$TBUILD/Wenzgram-src/scripts/apply-wenzgram-patches.sh" \
             "$TBUILD/Wenzgram-src/telegram-desktop" \
             "$TBUILD/tdesktop"
-          python3 - <<PY
-          from pathlib import Path
-          path = Path("$TBUILD/tdesktop/Telegram/build/prepare/prepare.py")
-          text = path.read_text(encoding="utf-8")
-          old = (
-              '    cd tools\\\\windows\\\\dump_syms\n'
-              '    gyp dump_syms.gyp --format=msvs\n'
-              '    msbuild -m dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64" %ToolsetProp%'
-          )
-          new = '    REM dump_syms skipped in CI (ATL/MFC not required for Telegram binary)'
-          if old not in text:
-              raise SystemExit('prepare.py breakpad patch target not found')
-          path.write_text(text.replace(old, new), encoding="utf-8")
-          print('Patched prepare.py: skipped dump_syms build')
-          PY
+          PREPARE_PY="$TBUILD/tdesktop/Telegram/build/prepare/prepare.py"
+          sed -i 's|cd tools\\windows\\dump_syms|REM cd tools\\windows\\dump_syms|' "$PREPARE_PY"
+          sed -i 's|gyp dump_syms.gyp --format=msvs|REM gyp dump_syms.gyp --format=msvs|' "$PREPARE_PY"
+          sed -i 's|msbuild -m dump_syms.vcxproj.*|REM dump_syms skipped in CI|' "$PREPARE_PY"
+          echo "Patched prepare.py: skipped dump_syms build"
 
       - name: Read SDK version and fix CMake
         shell: bash
