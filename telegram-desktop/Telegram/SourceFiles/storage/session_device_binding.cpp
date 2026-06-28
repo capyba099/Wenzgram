@@ -54,16 +54,23 @@ constexpr auto kFingerprintSize = 32;
 	return id;
 }
 
+[[nodiscard]] QByteArray HashToQByteArray(const bytes::vector &hash) {
+	return QByteArray(
+		reinterpret_cast<const char*>(hash.data()),
+		int(hash.size()));
+}
+
 } // namespace
 
 QByteArray SessionDeviceBinding::fingerprint() {
-	return openssl::Sha256(bytes::make_span(MachineFingerprint()));
+	return HashToQByteArray(
+		openssl::Sha256(bytes::make_span(MachineFingerprint())));
 }
 
 QByteArray SessionDeviceBinding::bindingMaterial(const QString &basePath) {
 	auto material = MachineFingerprint();
 	material.append(LoadOrCreateInstallId(basePath));
-	return openssl::Sha512(bytes::make_span(material));
+	return HashToQByteArray(openssl::Sha512(bytes::make_span(material)));
 }
 
 bool SessionDeviceBinding::verifyStoredFingerprint(
@@ -77,7 +84,7 @@ bool SessionDeviceBinding::verifyStoredFingerprint(
 
 QByteArray SessionDeviceBinding::storedFingerprint(const QString &basePath) {
 	auto material = bindingMaterial(basePath);
-	return openssl::Sha256(bytes::make_span(material));
+	return HashToQByteArray(openssl::Sha256(bytes::make_span(material)));
 }
 
 } // namespace Storage
