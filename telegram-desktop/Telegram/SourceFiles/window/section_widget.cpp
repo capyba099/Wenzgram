@@ -34,6 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
+#include "wenzgram/wenzgram_local_wallpapers.h"
+#include "wenzgram/wenzgram_settings.h"
 
 #include "styles/style_polls.h"
 
@@ -577,15 +579,30 @@ auto ChatThemeValueFromPeer(
 
 	return rpl::combine(
 		std::move(cloud),
-		controller->peerThemeOverrideValue()
+		controller->peerThemeOverrideValue(),
+		Wenzgram::localChatWallpapersEnabledValue(),
+		Wenzgram::LocalWallpapers::paperValue(&peer->session(), peer->id),
+		Window::Theme::IsNightModeValue()
 	) | rpl::map([=](
 			std::shared_ptr<Ui::ChatTheme> &&cloud,
-			PeerThemeOverride &&overriden) {
-		return (overriden.peer == peer.get()
-			&& peer->themeToken() != overriden.token)
-			? std::move(overriden.theme)
-			: std::move(cloud);
-	});
+			PeerThemeOverride &&overriden,
+			bool localEnabled,
+			const std::optional<Data::WallPaper> &localPaper,
+			bool night) -> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
+		if (localEnabled && localPaper) {
+			return controller->cachedChatThemeValue(
+				Data::CloudTheme(),
+				*localPaper,
+				night
+					? Data::CloudThemeType::Dark
+					: Data::CloudThemeType::Light);
+		}
+		if (overriden.peer == peer.get()
+			&& peer->themeToken() != overriden.token) {
+			return rpl::single(std::move(overriden.theme));
+		}
+		return rpl::single(std::move(cloud));
+	}) | rpl::flatten_latest();
 }
 
 bool ShowSendPremiumError(

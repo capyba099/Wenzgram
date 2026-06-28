@@ -80,6 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
+#include "wenzgram/wenzgram_local_wallpapers.h"
 #include "window/window_controller.h"
 #include "settings/sections/settings_advanced.h"
 #include "settings/sections/settings_premium.h"
@@ -313,6 +314,7 @@ private:
 	void addCreatePoll();
 	void addCreateTodoList();
 	void addThemeEdit();
+	void addLocalWallpaper();
 	void addToggleNoForwards();
 	void addBlockUser();
 	void addViewDiscussion();
@@ -1347,6 +1349,18 @@ void Filler::addCreateTodoList() {
 		&st::menuIconCreateTodoList);
 }
 
+void Filler::addLocalWallpaper() {
+	if (_peer->isVerifyCodes() || _peer->isRepliesChat()) {
+		return;
+	}
+	const auto controller = _controller;
+	const auto peer = _peer;
+	_addAction(
+		u"Локальные обои"_q,
+		[=] { Wenzgram::LocalWallpapers::chooseFromFile(controller, peer); },
+		&st::menuIconChangeColors);
+}
+
 void Filler::addThemeEdit() {
 	if (_peer->isVerifyCodes() || _peer->isRepliesChat()) {
 		return;
@@ -1785,6 +1799,7 @@ void Filler::fillHistoryActions() {
 	addCreatePoll();
 	addCreateTodoList();
 	addThemeEdit();
+	addLocalWallpaper();
 	addToggleNoForwards();
 	addViewDiscussion();
 	addDirectMessages();
@@ -1815,6 +1830,7 @@ void Filler::fillProfileActions() {
 	addViewDiscussion();
 	addDirectMessages();
 	addExportChat();
+	addLocalWallpaper();
 	addToggleNoForwards();
 	addToggleFolder();
 	addBlockUser();

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Applies Wenzgram session-protection patches onto a fresh tdesktop checkout.
+# Applies Wenzgram patches onto a fresh tdesktop checkout.
 PATCH_ROOT="${1:?Usage: apply-wenzgram-patches.sh <patch-source> <tdesktop-target>}"
 TARGET_ROOT="${2:?Usage: apply-wenzgram-patches.sh <patch-source> <tdesktop-target>}"
 
@@ -29,6 +29,17 @@ FILES=(
 	"Telegram/SourceFiles/core/application.h"
 	"Telegram/SourceFiles/core/application.cpp"
 	"Telegram/SourceFiles/window/window_lock_widgets.cpp"
+	"Telegram/SourceFiles/wenzgram/wenzgram_settings.h"
+	"Telegram/SourceFiles/wenzgram/wenzgram_settings.cpp"
+	"Telegram/SourceFiles/wenzgram/wenzgram_local_wallpapers.h"
+	"Telegram/SourceFiles/wenzgram/wenzgram_local_wallpapers.cpp"
+	"Telegram/SourceFiles/wenzgram/wenzgram_local_wallpaper_box.h"
+	"Telegram/SourceFiles/wenzgram/wenzgram_local_wallpaper_box.cpp"
+	"Telegram/SourceFiles/settings/sections/settings_wenzgram.h"
+	"Telegram/SourceFiles/settings/sections/settings_wenzgram.cpp"
+	"Telegram/SourceFiles/settings/sections/settings_main.cpp"
+	"Telegram/SourceFiles/window/section_widget.cpp"
+	"Telegram/SourceFiles/window/window_peer_menu.cpp"
 	"Telegram/CMakeLists.txt"
 )
 

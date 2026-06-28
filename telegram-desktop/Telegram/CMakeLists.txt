@@ -1762,6 +1762,8 @@ PRIVATE
     settings/sections/settings_shortcuts.h
     settings/sections/settings_websites.cpp
     settings/sections/settings_websites.h
+    settings/sections/settings_wenzgram.cpp
+    settings/sections/settings_wenzgram.h
     storage/details/storage_file_utilities.cpp
     storage/details/storage_file_utilities.h
     storage/details/storage_settings_scheme.cpp
@@ -1904,6 +1906,12 @@ PRIVATE
     ui/unread_badge.h
     ui/peer/video_userpic_player.cpp
     ui/peer/video_userpic_player.h
+    wenzgram/wenzgram_local_wallpaper_box.cpp
+    wenzgram/wenzgram_local_wallpaper_box.h
+    wenzgram/wenzgram_local_wallpapers.cpp
+    wenzgram/wenzgram_local_wallpapers.h
+    wenzgram/wenzgram_settings.cpp
+    wenzgram/wenzgram_settings.h
     window/main_window.cpp
     window/main_window.h
     window/notifications_manager.cpp
