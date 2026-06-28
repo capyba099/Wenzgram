@@ -12,13 +12,13 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Wenzgram.exe
+    name: Build Wenzgram.exe (Release)
     runs-on: windows-latest
-    timeout-minutes: 300
+    timeout-minutes: 360
 
     env:
       PREPARE_PATH: Telegram/build/prepare/prepare.py
-      BUILD_CONFIG: Debug
+      BUILD_CONFIG: Release
 
     defaults:
       run:
@@ -58,6 +58,7 @@ jobs:
           SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
           echo "SDK=$SDK" >> $GITHUB_ENV
           sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+          echo "release" >> CACHE_KEY.txt
           echo "$(sha256sum $TBUILD/tdesktop/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
           echo "$SDK" >> CACHE_KEY.txt
           echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
@@ -78,8 +79,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.TBUILD }}\ThirdParty
-          key: wenzgram-${{ runner.os }}-x64-third-party-${{ env.CACHE_KEY }}
-          restore-keys: wenzgram-${{ runner.os }}-x64-third-party-
+          key: wenzgram-release-${{ runner.os }}-x64-third-party-${{ env.CACHE_KEY }}
+          restore-keys: wenzgram-release-${{ runner.os }}-x64-third-party-
 
       - name: Libraries cache
         uses: actions/cache@v4
@@ -90,8 +91,8 @@ jobs:
             !${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: wenzgram-${{ runner.os }}-x64-libs-${{ env.CACHE_KEY }}
-          restore-keys: wenzgram-${{ runner.os }}-x64-libs-
+          key: wenzgram-release-${{ runner.os }}-x64-libs-${{ env.CACHE_KEY }}
+          restore-keys: wenzgram-release-${{ runner.os }}-x64-libs-
 
       - name: Qt cache
         uses: actions/cache@v4
@@ -99,12 +100,12 @@ jobs:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: wenzgram-${{ runner.os }}-x64-qt6-${{ env.CACHE_KEY }}
-          restore-keys: wenzgram-${{ runner.os }}-x64-qt6-
+          key: wenzgram-release-${{ runner.os }}-x64-qt6-${{ env.CACHE_KEY }}
+          restore-keys: wenzgram-release-${{ runner.os }}-x64-qt6-
 
-      - name: Prepare libraries
+      - name: Prepare libraries (Debug + Release)
         run: |
-          %TBUILD%\tdesktop\Telegram\build\prepare\win.bat skip-release silent qt6
+          %TBUILD%\tdesktop\Telegram\build\prepare\win.bat silent qt6
 
       - name: Free disk space after prepare
         shell: bash
@@ -113,6 +114,8 @@ jobs:
           df -h /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
           find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
           rm -rf "$TBUILD/tdesktop/.git" "$TBUILD/Wenzgram-src/.git" 2>/dev/null || true
+          echo "Disk after cleanup:"
+          df -h /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
 
       - name: Build Wenzgram
         run: |
@@ -138,7 +141,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Wenzgram-Windows-x64
+          name: Wenzgram-Windows-x64-Release
           path: artifact\
           retention-days: 30
 
@@ -148,14 +151,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v0.1.0-session-protection"
-          TITLE="Wenzgram 0.1.0 — Session Protection (Windows x64)"
-          NOTES="Сборка Wenzgram с защитой сессии (привязка tdata к устройству).
+          TAG="v0.2.0-release"
+          TITLE="Wenzgram 0.2.0 — Release (Windows x64)"
+          NOTES="Оптимизированная Release-сборка Wenzgram с защитой сессии.
 
-          - Wenzgram.exe — основной клиент
+          - Wenzgram.exe — основной клиент (Release, быстрее Debug)
           - Updater.exe — обновлятор (если есть)
 
-          Собрано автоматически из ветки ${GITHUB_REF_NAME} (${GITHUB_SHA:0:7}).
+          Собрано из ветки ${GITHUB_REF_NAME} (${GITHUB_SHA:0:7}).
           Конфигурация: ${BUILD_CONFIG}."
 
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
