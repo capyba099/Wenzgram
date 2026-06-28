@@ -25,37 +25,9 @@ jobs:
         shell: cmd
 
     steps:
-      - name: Free disk space on runner
-        shell: pwsh
+      - name: Prepare directories on D drive
         run: |
-          function Remove-IfExists($path) {
-            if (Test-Path $path) {
-              Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue
-            }
-          }
-          Remove-IfExists "$env:ProgramFiles\Android"
-          Remove-IfExists "$env:ProgramFiles (x86)\Android"
-          Remove-IfExists "$env:LOCALAPPDATA\Android"
-          Remove-IfExists "$env:ProgramFiles\MongoDB"
-          Remove-IfExists "$env:ProgramFiles\MySQL"
-          Remove-IfExists "$env:ProgramFiles\Microsoft SQL Server"
-          Remove-IfExists "$env:ProgramFiles\dotnet\shared"
-          Remove-IfExists "$env:ProgramFiles\Git\mingw64"
-          Remove-IfExists "$env:AGENT_TOOLSDIRECTORY\Ruby"
-          Remove-IfExists "$env:AGENT_TOOLSDIRECTORY\go"
-          Remove-IfExists "$env:AGENT_TOOLSDIRECTORY\Python"
-          Remove-IfExists "$env:AGENT_TOOLSDIRECTORY\node"
-          Remove-IfExists "C:\tools\Android"
-          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Lib" -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -notmatch '10\.0\.26100' } |
-            ForEach-Object { Remove-IfExists $_.FullName }
-          dism.exe /Online /Quiet /Cleanup-Image /StartComponentCleanup /ResetBase
-          Get-PSDrive C | Select-Object Used,Free
-
-      - name: Prepare directories
-        run: |
-          mkdir %userprofile%\TBuild\Libraries\win64
-          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          mkdir %GITHUB_WORKSPACE%\TBuild\Libraries\win64
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
           echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
 
@@ -137,13 +109,10 @@ jobs:
       - name: Free disk space after prepare
         shell: bash
         run: |
-          echo "Disk before cleanup:"
-          df -h /c /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
+          echo "Disk space:"
+          df -h /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
           find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
-          rm -rf "$TBUILD/ThirdParty"/*/build "$TBUILD/ThirdParty"/*/.git 2>/dev/null || true
           rm -rf "$TBUILD/tdesktop/.git" "$TBUILD/Wenzgram-src/.git" 2>/dev/null || true
-          echo "Disk after cleanup:"
-          df -h /c /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
 
       - name: Build Wenzgram
         run: |
