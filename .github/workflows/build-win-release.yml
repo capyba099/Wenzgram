@@ -147,6 +147,7 @@ jobs:
           set OUT=%TBUILD%\tdesktop\out\%BUILD_CONFIG%
           mkdir artifact
           copy /Y %OUT%\Telegram.exe artifact\Wenzgram.exe
+          if exist %OUT%\WenzgramUpdater.exe copy /Y %OUT%\WenzgramUpdater.exe artifact\WenzgramUpdater.exe
           if exist %OUT%\Updater.exe copy /Y %OUT%\Updater.exe artifact\Updater.exe
           echo Wenzgram Windows x64 (%BUILD_CONFIG%) > artifact\README.txt
           echo Built from %GITHUB_SHA% >> artifact\README.txt
@@ -164,18 +165,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v0.3.0-release"
-          TITLE="Wenzgram 0.3.0 — Release (Windows x64)"
-          NOTES="Release-сборка Wenzgram.
+          TAG="v0.4.0-release"
+          TITLE="Wenzgram 0.4.0 — Release (Windows x64)"
+          NOTES="Release-сборка Wenzgram с автообновлением.
 
-          Новое в этой версии:
-          - Настройки Wenzgram (раздел в настройках)
-          - Локальные обои для чатов
-          - Отображение удалённых сообщений с меткой «УДАЛЕНО»
+          Новое:
+          - WenzgramUpdater.exe — обновление с GitHub Releases
+          - Автопроверка обновлений каждые 6 часов
+          - Настройки Wenzgram, локальные обои, удалённые сообщения
           - Защита сессии от копирования tdata
 
-          - Wenzgram.exe — основной клиент (Release)
-          - Updater.exe — обновлятор (если есть)
+          Файлы:
+          - Wenzgram.exe — клиент
+          - WenzgramUpdater.exe — установщик обновлений (положите рядом с Wenzgram.exe)
 
           Собрано из ветки ${GITHUB_REF_NAME} (${GITHUB_SHA:0:7}).
           Конфигурация: ${BUILD_CONFIG}."

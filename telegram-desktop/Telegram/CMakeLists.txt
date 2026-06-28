@@ -1906,6 +1906,9 @@ PRIVATE
     ui/unread_badge.h
     ui/peer/video_userpic_player.cpp
     ui/peer/video_userpic_player.h
+    wenzgram/wenzgram_updater.cpp
+    wenzgram/wenzgram_updater.h
+    wenzgram/wenzgram_version.h
     wenzgram/wenzgram_deleted_messages.cpp
     wenzgram/wenzgram_deleted_messages.h
     wenzgram/wenzgram_local_wallpaper_box.cpp
@@ -2412,6 +2415,20 @@ elseif (build_winstore)
     )
 
     set_target_properties(StartupTask PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${output_folder}
+    )
+endif()
+
+if (WIN32)
+    add_executable(WenzgramUpdater WIN32)
+    init_non_host_target(WenzgramUpdater)
+
+    nice_target_sources(WenzgramUpdater ${src_loc}
+    PRIVATE
+        wenzgram/wenzgram_update_runner_win.cpp
+    )
+
+    set_target_properties(WenzgramUpdater PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${output_folder}
     )
 endif()

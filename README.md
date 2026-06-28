@@ -38,6 +38,8 @@
 | `wenzgram/wenzgram_local_wallpapers.*` | Локальные обои для чатов (только на этом устройстве) |
 | `settings/sections/settings_wenzgram.*` | Раздел «Wenzgram» в настройках |
 | `wenzgram/wenzgram_deleted_messages.*` | Отображение удалённых сообщений локально |
+| `wenzgram/wenzgram_updater.*` | Проверка и загрузка обновлений с GitHub |
+| `wenzgram/wenzgram_update_runner_win.cpp` | WenzgramUpdater.exe для Windows |
 
 ## Настройки Wenzgram
 
@@ -60,6 +62,13 @@
 ### Удалённые сообщения
 
 При включённой опции удалённые сообщения **не исчезают** из чата — остаются с красной меткой **«УДАЛЕНО»**. Работает для сообщений, удалённых пока клиент запущен (включая «удалить для всех»).
+
+### Автообновление
+
+1. Положите **WenzgramUpdater.exe** рядом с **Wenzgram.exe**
+2. Включите **Настройки → Wenzgram → Проверять обновления автоматически**
+3. Клиент проверяет [GitHub Releases](https://github.com/capyba099/Wenzgram/releases) и скачивает новый `Wenzgram.exe`
+4. Когда обновление готово — нажмите **Установить обновление** (или дождитесь уведомления)
 
 ## Сборка
 

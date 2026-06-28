@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
+#include "wenzgram/wenzgram_updater.h"
 #include "core/shortcuts.h"
 #include "core/sandbox.h"
 #include "core/local_url_handlers.h"
@@ -1995,9 +1996,11 @@ void SetLaunchState(LaunchState state) {
 }
 
 void Restart() {
+   const auto wenzgramUpdateReady = Core::UpdaterDisabled()
+	   && Wenzgram::Updater::Instance().isReady();
    const auto updateReady = !UpdaterDisabled()
 	   && (UpdateChecker().state() == UpdateChecker::State::Ready);
-   if (updateReady) {
+   if (updateReady || wenzgramUpdateReady) {
 	   cSetRestartingUpdate(true);
    } else {
 	   cSetRestarting(true);

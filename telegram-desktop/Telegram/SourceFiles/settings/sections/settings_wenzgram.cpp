@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_main.h"
 #include "lang/lang_keys.h"
 #include "ui/wrap/vertical_layout.h"
+#include "wenzgram/wenzgram_settings.h"
+#include "wenzgram/wenzgram_updater.h"
+#include "wenzgram/wenzgram_version.h"
 #include "window/window_session_controller.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -161,6 +164,74 @@ void BuildBehaviorSection(SectionBuilder &builder) {
 		false);
 }
 
+void BuildUpdatesSection(SectionBuilder &builder) {
+	builder.addSkip();
+	builder.addSubsectionTitle({
+		.id = u"wenzgram/updates"_q,
+		.title = rpl::single(u"Обновления"_q),
+		.keywords = { u"update"_q, u"updater"_q, u"release"_q },
+	});
+
+	AddBoolToggle(
+		builder,
+		u"wenzgram/auto_update"_q,
+		u"Проверять обновления автоматически"_q,
+		Wenzgram::kAutoUpdateKey,
+		true,
+		{ u"update"_q, u"github"_q });
+
+	const auto controller = builder.controller();
+	const auto versionLabel = u"Текущая версия: "_q
+		+ Wenzgram::Updater::Instance().currentVersion();
+
+	builder.addButton({
+		.id = u"wenzgram/update_status"_q,
+		.title = rpl::single(versionLabel),
+		.st = &st::settingsButtonNoIcon,
+		.keywords = { u"version"_q },
+	});
+
+	const auto install = builder.addButton({
+		.id = u"wenzgram/install_update"_q,
+		.title = rpl::single(u"Установить обновление"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] { Wenzgram::Updater::Instance().installUpdate(); },
+		.keywords = { u"install"_q },
+	});
+	if (install) {
+		install->setVisible(Wenzgram::Updater::Instance().isReady());
+	}
+
+	builder.addButton({
+		.id = u"wenzgram/check_update"_q,
+		.title = rpl::single(u"Проверить обновления"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			Wenzgram::Updater::Instance().checkNow();
+			controller->showToast(u"Проверяем обновления на GitHub..."_q);
+		},
+		.keywords = { u"check"_q },
+	});
+
+	const auto updater = &Wenzgram::Updater::Instance();
+	const auto &lifetime = controller->lifetime();
+	updater->ready() | rpl::on_next([=] {
+		if (install) {
+			install->setVisible(true);
+		}
+		controller->showToast(
+			u"Доступна версия "_q + updater->latestVersion());
+	}, lifetime);
+
+	updater->isLatest() | rpl::on_next([=] {
+		controller->showToast(u"Установлена последняя версия"_q);
+	}, lifetime);
+
+	updater->failed() | rpl::on_next([=] {
+		controller->showToast(u"Не удалось проверить обновления"_q);
+	}, lifetime);
+}
+
 void BuildSecuritySection(SectionBuilder &builder) {
 	builder.addSkip();
 	builder.addSubsectionTitle({
@@ -206,6 +277,7 @@ const auto kMeta = BuildHelper({
 	BuildLocalWallpapersSection(builder);
 	BuildAppearanceSection(builder);
 	BuildBehaviorSection(builder);
+	BuildUpdatesSection(builder);
 	BuildSecuritySection(builder);
 });
 

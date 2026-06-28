@@ -79,6 +79,10 @@ bool showDeletedMessages() {
 	return Read(kShowDeletedMessagesKey, true);
 }
 
+bool autoUpdateEnabled() {
+	return Read(kAutoUpdateKey, true);
+}
+
 rpl::producer<bool> localChatWallpapersEnabledValue() {
 	return rpl::single(
 		localChatWallpapersEnabled()

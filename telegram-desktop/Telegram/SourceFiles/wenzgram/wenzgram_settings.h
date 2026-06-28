@@ -33,6 +33,8 @@ inline constexpr auto kLargeEmojiKey
 	= "wenzgram-large-emoji"_cs;
 inline constexpr auto kShowDeletedMessagesKey
 	= "wenzgram-show-deleted-messages"_cs;
+inline constexpr auto kAutoUpdateKey
+	= "wenzgram-auto-update"_cs;
 
 [[nodiscard]] bool readBool(std::string_view key, bool fallback = false);
 void writeBool(std::string_view key, bool value);
@@ -48,6 +50,7 @@ void writeBool(std::string_view key, bool value);
 [[nodiscard]] bool hideChatFolders();
 [[nodiscard]] bool largeEmoji();
 [[nodiscard]] bool showDeletedMessages();
+[[nodiscard]] bool autoUpdateEnabled();
 
 [[nodiscard]] rpl::producer<bool> localChatWallpapersEnabledValue();
 [[nodiscard]] rpl::producer<> settingsChanged();
