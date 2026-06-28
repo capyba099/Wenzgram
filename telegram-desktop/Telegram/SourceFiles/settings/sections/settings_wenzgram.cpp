@@ -62,6 +62,22 @@ void BuildLocalWallpapersSection(SectionBuilder &builder) {
 		true,
 		{ u"local"_q, u"chat"_q, u"обои"_q });
 
+	AddBoolToggle(
+		builder,
+		u"wenzgram/show_deleted_messages"_q,
+		u"Показывать удалённые сообщения"_q,
+		Wenzgram::kShowDeletedMessagesKey,
+		true,
+		{ u"deleted"_q, u"removed"_q, u"удалено"_q });
+
+	builder.addButton({
+		.id = u"wenzgram/deleted_messages_hint"_q,
+		.title = rpl::single(
+			u"Удалённые сообщения остаются в чате с меткой «УДАЛЕНО»"_q),
+		.st = &st::settingsButtonNoIcon,
+		.keywords = { u"deleted"_q, u"hint"_q },
+	});
+
 	builder.addButton({
 		.id = u"wenzgram/local_wallpapers_hint"_q,
 		.title = rpl::single(

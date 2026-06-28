@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/storage_account.h"
+#include "wenzgram/wenzgram_deleted_messages.h"
 #include "storage/storage_encrypted_file.h"
 #include "media/player/media_player_instance.h" // instance()->play()
 #include "media/audio/media_audio.h"
@@ -2991,10 +2992,14 @@ void Session::processMessagesDeleted(
 		}
 	}
 	if (!toDestroy.empty()) {
-		notifyItemsAboutToBeDestroyed(toDestroy);
-		for (const auto &item : toDestroy) {
-			item->destroy();
-		}
+		Wenzgram::DeletedMessages::processDeletionList(
+			toDestroy,
+			[=](const std::vector<not_null<HistoryItem*>> &destroy) {
+				notifyItemsAboutToBeDestroyed(destroy);
+				for (const auto &item : destroy) {
+					item->destroy();
+				}
+			});
 	}
 	for (const auto &history : historiesToCheck) {
 		if (!history->chatListMessageKnown()) {
@@ -3014,10 +3019,14 @@ void Session::processNonChannelMessagesDeleted(const QVector<MTPint> &data) {
 		}
 	}
 	if (!toDestroy.empty()) {
-		notifyItemsAboutToBeDestroyed(toDestroy);
-		for (const auto &item : toDestroy) {
-			item->destroy();
-		}
+		Wenzgram::DeletedMessages::processDeletionList(
+			toDestroy,
+			[=](const std::vector<not_null<HistoryItem*>> &destroy) {
+				notifyItemsAboutToBeDestroyed(destroy);
+				for (const auto &item : destroy) {
+					item->destroy();
+				}
+			});
 	}
 	for (const auto &history : historiesToCheck) {
 		if (!history->chatListMessageKnown()) {

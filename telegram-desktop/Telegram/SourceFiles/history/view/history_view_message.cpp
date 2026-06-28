@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "core/ui_integration.h"
+#include "wenzgram/wenzgram_deleted_messages.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
@@ -2244,6 +2245,20 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		}
 	} else if (!context.skipSelectionCheck) {
 		_selectionRoundCheckbox = nullptr;
+	}
+	if (Wenzgram::DeletedMessages::isPreserved(item)) {
+		const auto o = p.opacity();
+		p.setOpacity(0.12);
+		p.fillRect(g, QColor(255, 64, 64));
+		p.setOpacity(o);
+		p.setPen(QPen(QColor(220, 70, 70)));
+		p.setFont(st::semiboldFont);
+		const auto label = u"УДАЛЕНО"_q;
+		const auto textWidth = st::semiboldFont->width(label);
+		p.drawText(
+			g.left() + std::max(0, (g.width() - textWidth) / 2),
+			g.top() + st::semiboldFont->ascent + st::msgPadding.top(),
+			label);
 	}
 }
 

@@ -75,6 +75,10 @@ bool largeEmoji() {
 	return Read(kLargeEmojiKey, false);
 }
 
+bool showDeletedMessages() {
+	return Read(kShowDeletedMessagesKey, true);
+}
+
 rpl::producer<bool> localChatWallpapersEnabledValue() {
 	return rpl::single(
 		localChatWallpapersEnabled()

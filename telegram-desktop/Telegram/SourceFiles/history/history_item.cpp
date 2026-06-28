@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_app_config.h"
 #include "main/main_session_settings.h"
+#include "wenzgram/wenzgram_deleted_messages.h"
 #include "menu/menu_ttl_validator.h"
 #include "apiwrap.h"
 #include "media/audio/media_audio.h"
@@ -2984,6 +2985,9 @@ bool HistoryItem::allowsReschedule() const {
 }
 
 bool HistoryItem::allowsForward() const {
+	if (Wenzgram::DeletedMessages::isPreserved(this)) {
+		return false;
+	}
 	return !isService()
 		&& isRegular()
 		&& !forbidsForward()
@@ -2998,6 +3002,9 @@ bool HistoryItem::isTooOldForEdit(TimeId now) const {
 }
 
 bool HistoryItem::allowsEdit(TimeId now) const {
+	if (Wenzgram::DeletedMessages::isPreserved(this)) {
+		return false;
+	}
 	const auto richPageSource = Get<HistoryMessageRichPageSource>();
 	const auto richPage = BestRichPage(richPageSource);
 	return !isService()
@@ -3062,6 +3069,9 @@ bool HistoryItem::forbidsSaving() const {
 }
 
 bool HistoryItem::canDelete() const {
+	if (Wenzgram::DeletedMessages::isPreserved(this)) {
+		return false;
+	}
 	if (isSponsored()) {
 		return false;
 	} else if (IsStoryMsgId(id)) {

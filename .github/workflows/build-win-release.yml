@@ -164,11 +164,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v0.2.0-release"
-          TITLE="Wenzgram 0.2.0 — Release (Windows x64)"
-          NOTES="Оптимизированная Release-сборка Wenzgram с защитой сессии.
+          TAG="v0.3.0-release"
+          TITLE="Wenzgram 0.3.0 — Release (Windows x64)"
+          NOTES="Release-сборка Wenzgram.
 
-          - Wenzgram.exe — основной клиент (Release, быстрее Debug)
+          Новое в этой версии:
+          - Настройки Wenzgram (раздел в настройках)
+          - Локальные обои для чатов
+          - Отображение удалённых сообщений с меткой «УДАЛЕНО»
+          - Защита сессии от копирования tdata
+
+          - Wenzgram.exe — основной клиент (Release)
           - Updater.exe — обновлятор (если есть)
 
           Собрано из ветки ${GITHUB_REF_NAME} (${GITHUB_SHA:0:7}).

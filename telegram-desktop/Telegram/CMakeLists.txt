@@ -1906,6 +1906,8 @@ PRIVATE
     ui/unread_badge.h
     ui/peer/video_userpic_player.cpp
     ui/peer/video_userpic_player.h
+    wenzgram/wenzgram_deleted_messages.cpp
+    wenzgram/wenzgram_deleted_messages.h
     wenzgram/wenzgram_local_wallpaper_box.cpp
     wenzgram/wenzgram_local_wallpaper_box.h
     wenzgram/wenzgram_local_wallpapers.cpp
