@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
+#include "wenzgram/wenzgram_profile_nft.h"
 #include "wenzgram/wenzgram_settings.h"
 #include "wenzgram/wenzgram_updater.h"
 #include "wenzgram/wenzgram_version.h"
@@ -88,6 +89,42 @@ void BuildLocalWallpapersSection(SectionBuilder &builder) {
 			u"Выберите чат → меню ⋮ → «Локальные обои»"_q),
 		.st = &st::settingsButtonNoIcon,
 		.keywords = { u"how"_q, u"help"_q },
+	});
+}
+
+void BuildProfileNftSection(SectionBuilder &builder) {
+	builder.addSkip();
+	builder.addSubsectionTitle({
+		.id = u"wenzgram/profile_nft"_q,
+		.title = rpl::single(u"NFT профиля"_q),
+		.keywords = { u"nft"_q, u"profile"_q, u"аватар"_q },
+	});
+
+	AddBoolToggle(
+		builder,
+		u"wenzgram/profile_nft_enabled"_q,
+		u"Локальные NFT в профиле"_q,
+		Wenzgram::kProfileNftKey,
+		true,
+		{ u"nft"_q, u"profile"_q });
+
+	const auto controller = builder.controller();
+	builder.addButton({
+		.id = u"wenzgram/profile_nft_manage"_q,
+		.title = rpl::single(u"Настроить NFT профиля"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			Wenzgram::ProfileNft::showManager(controller);
+		},
+		.keywords = { u"nft"_q, u"choose"_q },
+	});
+
+	builder.addButton({
+		.id = u"wenzgram/profile_nft_hint"_q,
+		.title = rpl::single(
+			u"NFT видят пользователи Wenzgram. Настройка: Профиль → Изменить"_q),
+		.st = &st::settingsButtonNoIcon,
+		.keywords = { u"hint"_q, u"how"_q },
 	});
 }
 
@@ -275,6 +312,7 @@ const auto kMeta = BuildHelper({
 	.icon = &st::menuIconManage,
 }, [](SectionBuilder &builder) {
 	BuildLocalWallpapersSection(builder);
+	BuildProfileNftSection(builder);
 	BuildAppearanceSection(builder);
 	BuildBehaviorSection(builder);
 	BuildUpdatesSection(builder);

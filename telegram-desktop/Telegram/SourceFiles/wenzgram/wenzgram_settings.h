@@ -35,6 +35,8 @@ inline constexpr auto kShowDeletedMessagesKey
 	= "wenzgram-show-deleted-messages"_cs;
 inline constexpr auto kAutoUpdateKey
 	= "wenzgram-auto-update"_cs;
+inline constexpr auto kProfileNftKey
+	= "wenzgram-profile-nft"_cs;
 
 [[nodiscard]] bool readBool(std::string_view key, bool fallback = false);
 void writeBool(std::string_view key, bool value);
@@ -51,8 +53,10 @@ void writeBool(std::string_view key, bool value);
 [[nodiscard]] bool largeEmoji();
 [[nodiscard]] bool showDeletedMessages();
 [[nodiscard]] bool autoUpdateEnabled();
+[[nodiscard]] bool profileNftEnabled();
 
 [[nodiscard]] rpl::producer<bool> localChatWallpapersEnabledValue();
+[[nodiscard]] rpl::producer<bool> profileNftEnabledValue();
 [[nodiscard]] rpl::producer<> settingsChanged();
 
 void notifySettingsChanged();

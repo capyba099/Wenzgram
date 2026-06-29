@@ -94,6 +94,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+#include "wenzgram/wenzgram_profile_nft.h"
+#include "wenzgram/wenzgram_settings.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "boxes/sticker_set_box.h"
@@ -434,6 +436,21 @@ TopBar::TopBar(
 	setupUniqueBadgeTooltip();
 	setupButtons(controller, descriptor.source);
 	setupUserpicButton(controller);
+	if (Wenzgram::profileNftEnabled()) {
+		if (_peer->isSelf()) {
+			Wenzgram::ProfileNft::ownValue(&_peer->session()) | rpl::on_next([=] {
+				update();
+			}, lifetime());
+		} else if (_peer->isUser()) {
+			Wenzgram::ProfileNft::forPeerValue(
+				&_peer->session(),
+				_peer->id
+			) | rpl::on_next([=] {
+				update();
+			}, lifetime());
+			Wenzgram::ProfileNft::requestFromPeer(&_peer->session(), _peer);
+		}
+	}
 	if (_hasActions) {
 		_peer->session().changes().peerFlagsValue(
 			_peer,
@@ -1994,6 +2011,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 	if (clipBounds.intersects(geometry)) {
 		paintUserpic(p, geometry);
+		Wenzgram::ProfileNft::paintOnUserpic(p, geometry, _peer);
 		paintStoryOutline(p, geometry);
 	}
 }

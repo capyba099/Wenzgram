@@ -83,11 +83,23 @@ bool autoUpdateEnabled() {
 	return Read(kAutoUpdateKey, true);
 }
 
+bool profileNftEnabled() {
+	return Read(kProfileNftKey, true);
+}
+
 rpl::producer<bool> localChatWallpapersEnabledValue() {
 	return rpl::single(
 		localChatWallpapersEnabled()
 	) | rpl::then(
 		settingsChanged() | rpl::map([] { return localChatWallpapersEnabled(); })
+	);
+}
+
+rpl::producer<bool> profileNftEnabledValue() {
+	return rpl::single(
+		profileNftEnabled()
+	) | rpl::then(
+		settingsChanged() | rpl::map([] { return profileNftEnabled(); })
 	);
 }
 

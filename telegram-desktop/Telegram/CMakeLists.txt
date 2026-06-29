@@ -1915,6 +1915,10 @@ PRIVATE
     wenzgram/wenzgram_local_wallpaper_box.h
     wenzgram/wenzgram_local_wallpapers.cpp
     wenzgram/wenzgram_local_wallpapers.h
+    wenzgram/wenzgram_profile_nft.cpp
+    wenzgram/wenzgram_profile_nft.h
+    wenzgram/wenzgram_profile_nft_box.cpp
+    wenzgram/wenzgram_profile_nft_box.h
     wenzgram/wenzgram_settings.cpp
     wenzgram/wenzgram_settings.h
     window/main_window.cpp

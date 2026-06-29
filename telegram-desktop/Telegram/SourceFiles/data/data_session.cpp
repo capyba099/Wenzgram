@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/storage_account.h"
 #include "wenzgram/wenzgram_deleted_messages.h"
+#include "wenzgram/wenzgram_profile_nft.h"
 #include "storage/storage_encrypted_file.h"
 #include "media/player/media_player_instance.h" // instance()->play()
 #include "media/audio/media_audio.h"
@@ -3255,6 +3256,9 @@ HistoryItem *Session::addNewMessage(
 		type);
 	if (type == NewMessageType::Unread) {
 		CheckForSwitchInlineButton(result);
+	}
+	if (result) {
+		Wenzgram::ProfileNft::processIncoming(result);
 	}
 	return result;
 }

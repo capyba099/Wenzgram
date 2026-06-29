@@ -54,6 +54,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "window/window_session_controller.h"
+#include "wenzgram/wenzgram_profile_nft.h"
+#include "wenzgram/wenzgram_settings.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "apiwrap.h"
@@ -338,6 +340,31 @@ void SetupPhoto(
 			(max - statusWidth) / 2,
 			(name->y() + name->height() + st::settingsInfoNameSkip));
 	}, photo->lifetime());
+}
+
+void SetupProfileNft(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> self) {
+	if (!Wenzgram::profileNftEnabled()) {
+		return;
+	}
+	Ui::AddSkip(container);
+	const auto session = &self->session();
+	const auto value = Wenzgram::ProfileNft::ownValue(session) | rpl::map([](
+			const std::optional<Wenzgram::ProfileNft::Entry> &entry) {
+		return TextWithEntities{
+			entry ? entry->title : u"Не выбран"_q,
+		};
+	});
+	const auto button = AddRow(
+		container,
+		rpl::single(u"Локальный NFT"_q),
+		std::move(value),
+		QString(),
+		[=] { Wenzgram::ProfileNft::showManager(controller); },
+		{ &st::menuIconProfile });
+	button->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 }
 
 void ShowMenu(
@@ -1355,6 +1382,7 @@ void Information::setupContent() {
 		auto targets = InformationHighlightTargets();
 
 		SetupPhoto(container, controller, self, &targets);
+		SetupProfileNft(container, controller, self);
 		SetupBio(container, self, &targets);
 		SetupRows(container, controller, self, &targets);
 		SetupPersonalChannel(container, controller, self, &targets);

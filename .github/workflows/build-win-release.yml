@@ -291,19 +291,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v0.4.0-release"
-          TITLE="Wenzgram 0.4.0 — Release (Windows x64)"
-          NOTES="Release-сборка Wenzgram с автообновлением.
+          TAG="v0.5.0-release"
+          TITLE="Wenzgram 0.5.0 — Release (Windows x64)"
+          NOTES="Release-сборка Wenzgram с локальными NFT профиля.
 
           Новое:
-          - WenzgramUpdater.exe — обновление с GitHub Releases
-          - Автопроверка обновлений каждые 6 часов
-          - Настройки Wenzgram, локальные обои, удалённые сообщения
-          - Защита сессии от копирования tdata
+          - Локальные NFT в профиле (видны пользователям Wenzgram)
+          - Настройка NFT: Настройки → Профиль → Локальный NFT
+          - Синхронизация NFT через скрытые сообщения между клиентами Wenzgram
+
+          Также:
+          - WenzgramUpdater, локальные обои, удалённые сообщения, защита сессии
 
           Файлы:
           - Wenzgram.exe — клиент
-          - WenzgramUpdater.exe — установщик обновлений (положите рядом с Wenzgram.exe)
+          - WenzgramUpdater.exe — установщик обновлений
 
           Собрано из ветки ${GITHUB_REF_NAME} (${GITHUB_SHA:0:7}).
           Конфигурация: ${BUILD_CONFIG}."
