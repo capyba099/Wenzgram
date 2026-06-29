@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "window/window_session_controller.h"
@@ -47,7 +48,7 @@ void ShowLocalWallpaperBox(
 		Data::WallPaper paper) {
 	const auto preview = GeneratePreview(paper);
 	const auto hasLocal = has(&peer->session(), peer->id);
-	const auto hasNewImage = !paper.isNull() && preview;
+	const auto hasNewImage = !paper.isNull() && !preview.isNull();
 
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(u"Локальные обои чата"_q);

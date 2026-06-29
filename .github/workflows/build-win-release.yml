@@ -10,15 +10,16 @@ on:
 permissions:
   contents: write
 
-jobs:
-  build-windows:
-    name: Build Wenzgram.exe (Release)
-    runs-on: windows-latest
-    timeout-minutes: 360
+env:
+  PREPARE_PATH: Telegram/build/prepare/prepare.py
+  BUILD_CONFIG: Release
+  TDESKTOP_REF: dev
 
-    env:
-      PREPARE_PATH: Telegram/build/prepare/prepare.py
-      BUILD_CONFIG: Release
+jobs:
+  prepare-libraries:
+    name: Prepare libraries (cached)
+    runs-on: windows-latest
+    timeout-minutes: 240
 
     defaults:
       run:
@@ -39,7 +40,7 @@ jobs:
       - name: Clone Telegram Desktop with submodules
         shell: bash
         run: |
-          git clone --recursive --depth 1 -b dev \
+          git clone --recursive --depth 1 -b "${TDESKTOP_REF}" \
             https://github.com/telegramdesktop/tdesktop.git \
             "$TBUILD/tdesktop"
 
@@ -54,7 +55,6 @@ jobs:
           sed -i 's|cd tools\\windows\\dump_syms|REM cd tools\\windows\\dump_syms|' "$PREPARE_PY"
           sed -i 's|gyp dump_syms.gyp --format=msvs|REM gyp dump_syms.gyp --format=msvs|' "$PREPARE_PY"
           sed -i 's|msbuild -m dump_syms.vcxproj.*|REM dump_syms skipped in CI|' "$PREPARE_PY"
-          echo "Patched prepare.py: skipped dump_syms build"
 
       - name: Read SDK version and fix CMake
         shell: bash
@@ -63,7 +63,6 @@ jobs:
           SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
           echo "SDK=$SDK" >> $GITHUB_ENV
           sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
-          echo "release" >> CACHE_KEY.txt
           echo "$(sha256sum $TBUILD/tdesktop/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
           echo "$SDK" >> CACHE_KEY.txt
           echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
@@ -80,17 +79,18 @@ jobs:
           nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
 
-      - name: ThirdParty cache
-        uses: actions/cache@v4
+      - name: Restore ThirdParty cache
+        uses: actions/cache/restore@v4
+        id: cache-third-party
         with:
           path: ${{ env.TBUILD }}\ThirdParty
-          key: wenzgram-${{ runner.os }}-x64-third-party-${{ env.CACHE_KEY }}
+          key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
           restore-keys: |
-            wenzgram-${{ runner.os }}-x64-third-party-${{ env.CACHE_KEY }}
-            wenzgram-${{ runner.os }}-x64-third-party-
+            ${{ runner.os }}-${{ runner.arch }}-third-party-
 
-      - name: Libraries cache
-        uses: actions/cache@v4
+      - name: Restore Libraries cache
+        uses: actions/cache/restore@v4
+        id: cache-libs
         with:
           path: |
             ${{ env.LibrariesPath }}\*
@@ -98,37 +98,163 @@ jobs:
             !${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: wenzgram-${{ runner.os }}-x64-libs-${{ env.CACHE_KEY }}
+          key: ${{ runner.os }}-${{ runner.arch }}-libs-${{ env.CACHE_KEY }}
           restore-keys: |
-            wenzgram-${{ runner.os }}-x64-libs-${{ env.CACHE_KEY }}
-            wenzgram-${{ runner.os }}-x64-libs-
-            wenzgram-release-${{ runner.os }}-x64-libs-
+            ${{ runner.os }}-${{ runner.arch }}-libs-
 
-      - name: Qt cache
-        uses: actions/cache@v4
+      - name: Restore Qt cache
+        uses: actions/cache/restore@v4
+        id: cache-qt
         with:
           path: |
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: wenzgram-${{ runner.os }}-x64-qt6-${{ env.CACHE_KEY }}
+          key: ${{ runner.os }}-${{ runner.arch }}-qt6-${{ env.CACHE_KEY }}
           restore-keys: |
-            wenzgram-${{ runner.os }}-x64-qt6-${{ env.CACHE_KEY }}
-            wenzgram-${{ runner.os }}-x64-qt6-
-            wenzgram-release-${{ runner.os }}-x64-qt6-
+            ${{ runner.os }}-${{ runner.arch }}-qt6-
 
-      - name: Prepare libraries (Debug + Release)
+      - name: Prepare libraries (Release only)
+        id: prepare_libs
         run: |
           %TBUILD%\tdesktop\Telegram\build\prepare\win.bat silent qt6
 
       - name: Free disk space after prepare
+        if: success()
         shell: bash
         run: |
-          echo "Disk space:"
-          df -h /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
           find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
           rm -rf "$TBUILD/tdesktop/.git" "$TBUILD/Wenzgram-src/.git" 2>/dev/null || true
-          echo "Disk after cleanup:"
-          df -h /d 2>/dev/null || wmic logicaldisk get size,freespace,caption
+
+      - name: Save ThirdParty cache
+        if: steps.prepare_libs.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+
+      - name: Save Libraries cache
+        if: steps.prepare_libs.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-${{ runner.arch }}-libs-${{ env.CACHE_KEY }}
+
+      - name: Save Qt cache
+        if: steps.prepare_libs.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-${{ runner.arch }}-qt6-${{ env.CACHE_KEY }}
+
+  build-windows:
+    name: Build Wenzgram.exe (Release)
+    needs: prepare-libraries
+    runs-on: windows-latest
+    timeout-minutes: 180
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories on D drive
+        run: |
+          mkdir %GITHUB_WORKSPACE%\TBuild\Libraries\win64
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Checkout Wenzgram
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.TBUILD }}\Wenzgram-src
+
+      - name: Clone Telegram Desktop with submodules
+        shell: bash
+        run: |
+          git clone --recursive --depth 1 -b "${TDESKTOP_REF}" \
+            https://github.com/telegramdesktop/tdesktop.git \
+            "$TBUILD/tdesktop"
+
+      - name: Apply Wenzgram patches
+        shell: bash
+        run: |
+          chmod +x "$TBUILD/Wenzgram-src/scripts/apply-wenzgram-patches.sh"
+          "$TBUILD/Wenzgram-src/scripts/apply-wenzgram-patches.sh" \
+            "$TBUILD/Wenzgram-src/telegram-desktop" \
+            "$TBUILD/tdesktop"
+          PREPARE_PY="$TBUILD/tdesktop/Telegram/build/prepare/prepare.py"
+          sed -i 's|cd tools\\windows\\dump_syms|REM cd tools\\windows\\dump_syms|' "$PREPARE_PY"
+          sed -i 's|gyp dump_syms.gyp --format=msvs|REM gyp dump_syms.gyp --format=msvs|' "$PREPARE_PY"
+          sed -i 's|msbuild -m dump_syms.vcxproj.*|REM dump_syms skipped in CI|' "$PREPARE_PY"
+
+      - name: Read SDK version and fix CMake
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/tdesktop/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+          echo "$(sha256sum $TBUILD/tdesktop/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+      - uses: Eden-CI/msvc-dev-cmd@master
+        name: Native Tools Command Prompt
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: 14.44
+
+      - name: NuGet sources
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: Restore ThirdParty cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-third-party-
+
+      - name: Restore Libraries cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-${{ runner.arch }}-libs-${{ env.CACHE_KEY }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-libs-
+
+      - name: Restore Qt cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-${{ runner.arch }}-qt6-${{ env.CACHE_KEY }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-qt6-
+
+      - name: Verify libraries are present
+        shell: bash
+        run: |
+          if [ ! -d "$LibrariesPath/local" ]; then
+            echo "Libraries cache was not restored. Prepare job must succeed first." >&2
+            exit 1
+          fi
 
       - name: Build Wenzgram
         run: |

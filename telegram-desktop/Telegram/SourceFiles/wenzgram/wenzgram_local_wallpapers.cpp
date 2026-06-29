@@ -35,6 +35,11 @@ constexpr auto kMagic = quint32(0x575a5750); // 'WZWP'
 struct Entry {
 	Data::WallPaper paper;
 	QImage image;
+
+	Entry(const Data::WallPaper &paper, QImage image)
+	: paper(paper)
+	, image(std::move(image)) {
+	}
 };
 
 class Manager final {
@@ -63,8 +68,17 @@ public:
 	}
 
 	void set(PeerId peerId, const Data::WallPaper &paper, QImage image) {
-		_cache[peerId] = Entry{ paper, std::move(image) };
-		write(peerId, _cache[peerId]);
+		const auto i = _cache.find(peerId);
+		if (i != end(_cache)) {
+			i->second.paper = paper;
+			i->second.image = std::move(image);
+			write(peerId, i->second);
+		} else {
+			const auto inserted = _cache.emplace(
+				peerId,
+				Entry{ paper, std::move(image) });
+			write(peerId, inserted.first->second);
+		}
 		_changed.fire_copy(peerId);
 	}
 
