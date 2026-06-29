@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "core/ui_integration.h"
 #include "wenzgram/wenzgram_deleted_messages.h"
+#include "wenzgram/wenzgram_settings.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
@@ -6860,6 +6861,9 @@ void Message::refreshInfoSkipBlock(HistoryItem *textItem) {
 
 TimeId Message::displayedEditDate() const {
 	const auto item = data();
+	if (Wenzgram::hideEditedBadge()) {
+		return TimeId(0);
+	}
 	const auto overrided = media() && media()->overrideEditedDate();
 	if (item->hideEditedBadge() && !overrided) {
 		return TimeId(0);
@@ -6870,6 +6874,9 @@ TimeId Message::displayedEditDate() const {
 }
 
 HistoryMessageEdited *Message::displayedEditBadge() {
+	if (Wenzgram::hideEditedBadge()) {
+		return nullptr;
+	}
 	if (const auto media = this->media()) {
 		if (media->overrideEditedDate()) {
 			return media->displayedEditBadge();
@@ -6879,6 +6886,9 @@ HistoryMessageEdited *Message::displayedEditBadge() {
 }
 
 const HistoryMessageEdited *Message::displayedEditBadge() const {
+	if (Wenzgram::hideEditedBadge()) {
+		return nullptr;
+	}
 	if (const auto media = this->media()) {
 		if (media->overrideEditedDate()) {
 			return media->displayedEditBadge();

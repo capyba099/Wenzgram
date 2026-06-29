@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "rpl/producer.h"
+#include <QtCore/QDateTime>
+#include <QtCore/QTime>
 
 namespace Wenzgram {
 
@@ -58,6 +59,10 @@ void writeBool(std::string_view key, bool value);
 [[nodiscard]] rpl::producer<bool> localChatWallpapersEnabledValue();
 [[nodiscard]] rpl::producer<bool> profileNftEnabledValue();
 [[nodiscard]] rpl::producer<> settingsChanged();
+
+void syncCoreSettings();
+[[nodiscard]] QString formatTime(const QTime &time);
+[[nodiscard]] QString formatTime(const QDateTime &date);
 
 void notifySettingsChanged();
 

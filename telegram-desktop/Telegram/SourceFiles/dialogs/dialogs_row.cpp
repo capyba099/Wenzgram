@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "wenzgram/wenzgram_settings.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
 #include "styles/style_calls.h"
@@ -324,6 +325,9 @@ void Row::recountHeight(float64 narrowRatio, FilterId filterId) {
 			st.height,
 			st::defaultDialogRow.height,
 			narrowRatio);
+	if (Wenzgram::compactDialogs()) {
+		_height = std::max(48, int(_height * 0.82));
+	}
 }
 
 uint64 Row::sortKey(FilterId filterId) const {

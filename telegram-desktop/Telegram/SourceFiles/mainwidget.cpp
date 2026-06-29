@@ -77,6 +77,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "wenzgram/wenzgram_updater.h"
+#include "wenzgram/wenzgram_settings.h"
 #include "core/click_handler_types.h"
 #include "core/changelogs.h"
 #include "core/mime_type.h"
@@ -435,6 +436,7 @@ MainWidget::MainWidget(
 		Core::UpdateChecker checker;
 		checker.start();
 	} else {
+		Wenzgram::syncCoreSettings();
 		Wenzgram::Updater::Service::Instance().start();
 	}
 

@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_session.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
+
+#include <QLocale>
 
 namespace Wenzgram {
 namespace {
@@ -19,9 +24,28 @@ rpl::event_stream<> Changes;
 	return Core::App().settings().readPref<bool>(key, fallback);
 }
 
+void RefreshDialogsLayout() {
+	Core::App().domain().enumerateAccounts([&](not_null<Main::Account*> account) {
+		if (const auto session = account->maybeSession()) {
+			session->data().chatsList()->indexed()->updateHeights(0);
+		}
+	});
+}
+
+void ApplySetting(std::string_view key, bool value) {
+	if (key == kLargeEmojiKey) {
+		Core::App().settings().setLargeEmoji(value);
+	} else if (key == kShowBrandingKey) {
+		Core::App().updateWindowTitles();
+	} else if (key == kCompactDialogsKey) {
+		RefreshDialogsLayout();
+	}
+}
+
 void Write(std::string_view key, bool value) {
 	Core::App().settings().writePref<bool>(key, value);
 	Core::App().saveSettingsDelayed();
+	ApplySetting(key, value);
 	Changes.fire({});
 }
 
@@ -109,6 +133,23 @@ rpl::producer<> settingsChanged() {
 
 void notifySettingsChanged() {
 	Changes.fire({});
+}
+
+void syncCoreSettings() {
+	Core::App().settings().setLargeEmoji(largeEmoji());
+	Core::App().updateWindowTitles();
+	RefreshDialogsLayout();
+}
+
+QString formatTime(const QTime &time) {
+	if (showSecondsInTime()) {
+		return time.toString(u"HH:mm:ss"_q);
+	}
+	return QLocale().toString(time, QLocale::ShortFormat);
+}
+
+QString formatTime(const QDateTime &date) {
+	return formatTime(date.time());
 }
 
 } // namespace Wenzgram

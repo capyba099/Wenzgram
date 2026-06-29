@@ -439,7 +439,7 @@ void BuildSectionButtons(SectionBuilder &builder) {
 		.title = rpl::single(u"Wenzgram"_q),
 		.targetSection = WenzgramId(),
 		.icon = { &st::menuIconManage },
-		.keywords = { u"wenzgram"_q, u"mod"_q, u"обои"_q, u"wallpaper"_q },
+		.keywords = { u"wenzgram"_q, u"mod"_q, u"nft"_q, u"appearance"_q },
 	});
 
 	builder.addSectionButton({

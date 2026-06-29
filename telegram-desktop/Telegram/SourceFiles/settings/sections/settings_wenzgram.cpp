@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "wenzgram/wenzgram_profile_nft.h"
 #include "wenzgram/wenzgram_settings.h"
 #include "wenzgram/wenzgram_updater.h"
@@ -51,21 +52,13 @@ void AddBoolToggle(
 	}
 }
 
-void BuildLocalWallpapersSection(SectionBuilder &builder) {
+void BuildDeletedMessagesSection(SectionBuilder &builder) {
 	builder.addSkip();
 	builder.addSubsectionTitle({
-		.id = u"wenzgram/local_wallpapers"_q,
-		.title = rpl::single(u"Локальные обои"_q),
-		.keywords = { u"wallpaper"_q, u"background"_q, u"обои"_q },
+		.id = u"wenzgram/messages"_q,
+		.title = rpl::single(u"Сообщения"_q),
+		.keywords = { u"deleted"_q, u"messages"_q },
 	});
-
-	AddBoolToggle(
-		builder,
-		u"wenzgram/local_wallpapers_enabled"_q,
-		u"Локальные обои для чатов"_q,
-		Wenzgram::kLocalChatWallpapersKey,
-		true,
-		{ u"local"_q, u"chat"_q, u"обои"_q });
 
 	AddBoolToggle(
 		builder,
@@ -81,14 +74,6 @@ void BuildLocalWallpapersSection(SectionBuilder &builder) {
 			u"Удалённые сообщения остаются в чате с меткой «УДАЛЕНО»"_q),
 		.st = &st::settingsButtonNoIcon,
 		.keywords = { u"deleted"_q, u"hint"_q },
-	});
-
-	builder.addButton({
-		.id = u"wenzgram/local_wallpapers_hint"_q,
-		.title = rpl::single(
-			u"Выберите чат → меню ⋮ → «Локальные обои»"_q),
-		.st = &st::settingsButtonNoIcon,
-		.keywords = { u"how"_q, u"help"_q },
 	});
 }
 
@@ -168,40 +153,6 @@ void BuildAppearanceSection(SectionBuilder &builder) {
 		false);
 }
 
-void BuildBehaviorSection(SectionBuilder &builder) {
-	builder.addSkip();
-	builder.addSubsectionTitle({
-		.id = u"wenzgram/behavior"_q,
-		.title = rpl::single(u"Поведение"_q),
-		.keywords = { u"behavior"_q, u"actions"_q },
-	});
-
-	AddBoolToggle(
-		builder,
-		u"wenzgram/confirm_send"_q,
-		u"Подтверждать отправку сообщений"_q,
-		Wenzgram::kConfirmBeforeSendKey,
-		false);
-	AddBoolToggle(
-		builder,
-		u"wenzgram/copy_username"_q,
-		u"Копировать @username по клику"_q,
-		Wenzgram::kCopyUsernameOnClickKey,
-		false);
-	AddBoolToggle(
-		builder,
-		u"wenzgram/disable_animations"_q,
-		u"Отключить анимации в чатах"_q,
-		Wenzgram::kDisableChatAnimationsKey,
-		false);
-	AddBoolToggle(
-		builder,
-		u"wenzgram/hide_folders"_q,
-		u"Скрывать панель папок чатов"_q,
-		Wenzgram::kHideChatFoldersKey,
-		false);
-}
-
 void BuildUpdatesSection(SectionBuilder &builder) {
 	builder.addSkip();
 	builder.addSubsectionTitle({
@@ -219,15 +170,6 @@ void BuildUpdatesSection(SectionBuilder &builder) {
 		{ u"update"_q, u"github"_q });
 
 	const auto controller = builder.controller();
-	const auto versionLabel = u"Текущая версия: "_q
-		+ Wenzgram::Updater::Service::Instance().currentVersion();
-
-	builder.addButton({
-		.id = u"wenzgram/update_status"_q,
-		.title = rpl::single(versionLabel),
-		.st = &st::settingsButtonNoIcon,
-		.keywords = { u"version"_q },
-	});
 
 	const auto install = builder.addButton({
 		.id = u"wenzgram/install_update"_q,
@@ -269,29 +211,6 @@ void BuildUpdatesSection(SectionBuilder &builder) {
 	}
 }
 
-void BuildSecuritySection(SectionBuilder &builder) {
-	builder.addSkip();
-	builder.addSubsectionTitle({
-		.id = u"wenzgram/security"_q,
-		.title = rpl::single(u"Безопасность Wenzgram"_q),
-		.keywords = { u"security"_q, u"session"_q, u"защита"_q },
-	});
-
-	builder.addButton({
-		.id = u"wenzgram/session_binding"_q,
-		.title = rpl::single(u"Привязка сессии к устройству: включена"_q),
-		.st = &st::settingsButtonNoIcon,
-		.keywords = { u"device"_q, u"tdata"_q, u"защита"_q },
-	});
-	builder.addButton({
-		.id = u"wenzgram/session_binding_hint"_q,
-		.title = rpl::single(
-			u"Скопированная папка tdata не откроется на другом ПК"_q),
-		.st = &st::settingsButtonNoIcon,
-		.keywords = { u"hint"_q },
-	});
-}
-
 class WenzgramSettings : public Section<WenzgramSettings> {
 public:
 	WenzgramSettings(
@@ -311,12 +230,10 @@ const auto kMeta = BuildHelper({
 	.title = &tr::lng_settings_experimental,
 	.icon = &st::menuIconManage,
 }, [](SectionBuilder &builder) {
-	BuildLocalWallpapersSection(builder);
+	BuildDeletedMessagesSection(builder);
 	BuildProfileNftSection(builder);
 	BuildAppearanceSection(builder);
-	BuildBehaviorSection(builder);
 	BuildUpdatesSection(builder);
-	BuildSecuritySection(builder);
 });
 
 const SectionBuildMethod kWenzgramSection = kMeta.build;
@@ -335,6 +252,23 @@ rpl::producer<QString> WenzgramSettings::title() {
 void WenzgramSettings::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	build(content, kWenzgramSection);
+
+	Ui::AddSkip(content);
+	const auto versionWrap = content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::settingsSectionTitle.font->height + st::settingsSectionSkip));
+	const auto version = Ui::CreateChild<Ui::FlatLabel>(
+		versionWrap,
+		rpl::single(
+			u"Текущая версия: "_q + QLatin1String(Wenzgram::kVersion)),
+		st::settingsSectionTitle);
+	version->setAttribute(Qt::WA_TransparentForMouseEvents);
+	versionWrap->widthValue(
+	) | rpl::on_next([=](int width) {
+		version->resizeToWidth(width);
+		version->moveToLeft((width - version->width()) / 2, 0);
+	}, version->lifetime());
+
 	Ui::ResizeFitChild(this, content);
 }
 

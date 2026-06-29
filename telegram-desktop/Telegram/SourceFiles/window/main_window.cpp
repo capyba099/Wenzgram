@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_controller.h"
+#include "wenzgram/wenzgram_settings.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "main/main_domain.h"
 #include "core/application.h"
@@ -847,7 +848,10 @@ void MainWindow::updateTitle() {
 		: Dialogs::Key();
 	const auto thread = key ? key.thread() : nullptr;
 	if (!thread) {
-		setTitle((user.isEmpty() ? u"Telegram"_q : user) + added);
+		const auto appName = Wenzgram::showBranding()
+			? u"Wenzgram"_q
+			: u"Telegram"_q;
+		setTitle((user.isEmpty() ? appName : user) + added);
 		return;
 	}
 	const auto history = thread->owningHistory();
