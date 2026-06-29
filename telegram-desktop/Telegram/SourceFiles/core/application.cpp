@@ -1997,7 +1997,7 @@ void SetLaunchState(LaunchState state) {
 
 void Restart() {
    const auto wenzgramUpdateReady = Core::UpdaterDisabled()
-	   && Wenzgram::Updater::Instance().isReady();
+	   && Wenzgram::Updater::Service::Instance().isReady();
    const auto updateReady = !UpdaterDisabled()
 	   && (UpdateChecker().state() == UpdateChecker::State::Ready);
    if (updateReady || wenzgramUpdateReady) {

@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "rpl/producer.h"
 
 #include <QtCore/QObject>
+#include <QtNetwork/QNetworkAccessManager>
+#include <QtNetwork/QNetworkReply>
 
 namespace Wenzgram::Updater {
 
@@ -21,9 +23,9 @@ enum class State {
 	Ready,
 };
 
-class Updater final : public QObject {
+class Service final : public QObject {
 public:
-	[[nodiscard]] static Updater &Instance();
+	[[nodiscard]] static Service &Instance();
 
 	[[nodiscard]] QString currentVersion() const;
 	[[nodiscard]] QString latestVersion() const;
@@ -41,20 +43,19 @@ public:
 	[[nodiscard]] bool isReady() const;
 
 private:
-	Updater();
+	Service();
 
 	void scheduleNextCheck();
 	void handleReleaseResponse(const QByteArray &bytes);
 	void downloadAsset(const QString &url);
-	void finishDownload();
 	void fail();
 
 	QString _latestVersion;
 	QString _downloadPath;
 	State _state = State::None;
-	class QNetworkReply *_checkReply = nullptr;
-	class QNetworkReply *_downloadReply = nullptr;
-	class QNetworkAccessManager *_manager = nullptr;
+	QNetworkReply *_checkReply = nullptr;
+	QNetworkReply *_downloadReply = nullptr;
+	QNetworkAccessManager *_manager = nullptr;
 	base::Timer _checkTimer;
 	rpl::event_stream<> _checking;
 	rpl::event_stream<> _isLatest;

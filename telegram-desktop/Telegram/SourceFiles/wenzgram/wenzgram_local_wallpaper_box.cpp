@@ -84,7 +84,7 @@ void ShowLocalWallpaperBox(
 		}, widget->lifetime());
 
 		if (hasNewImage) {
-			box->addButton(u"Применить локально"_q, [=] {
+			box->addButton(rpl::single(u"Применить локально"_q), [=] {
 				const auto thumb = paper.localThumbnail();
 				if (!thumb) {
 					box->closeBox();
@@ -101,13 +101,13 @@ void ShowLocalWallpaperBox(
 			});
 		}
 		if (hasLocal) {
-			box->addButton(u"Сбросить локальные обои"_q, [=] {
+			box->addButton(rpl::single(u"Сбросить локальные обои"_q), [=] {
 				remove(&peer->session(), peer->id);
 				controller->showToast(u"Локальные обои сброшены"_q);
 				box->closeBox();
 			});
 		}
-		box->addButton(tr::lng_close(tr::now), [=] { box->closeBox(); });
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 	}));
 }
 

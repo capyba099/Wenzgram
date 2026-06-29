@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_main.h"
 #include "lang/lang_keys.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/buttons.h"
 #include "wenzgram/wenzgram_settings.h"
 #include "wenzgram/wenzgram_updater.h"
 #include "wenzgram/wenzgram_version.h"
@@ -182,7 +183,7 @@ void BuildUpdatesSection(SectionBuilder &builder) {
 
 	const auto controller = builder.controller();
 	const auto versionLabel = u"Текущая версия: "_q
-		+ Wenzgram::Updater::Instance().currentVersion();
+		+ Wenzgram::Updater::Service::Instance().currentVersion();
 
 	builder.addButton({
 		.id = u"wenzgram/update_status"_q,
@@ -195,11 +196,11 @@ void BuildUpdatesSection(SectionBuilder &builder) {
 		.id = u"wenzgram/install_update"_q,
 		.title = rpl::single(u"Установить обновление"_q),
 		.st = &st::settingsButtonNoIcon,
-		.onClick = [=] { Wenzgram::Updater::Instance().installUpdate(); },
+		.onClick = [=] { Wenzgram::Updater::Service::Instance().installUpdate(); },
 		.keywords = { u"install"_q },
 	});
 	if (install) {
-		install->setVisible(Wenzgram::Updater::Instance().isReady());
+		install->setVisible(Wenzgram::Updater::Service::Instance().isReady());
 	}
 
 	builder.addButton({
@@ -207,13 +208,13 @@ void BuildUpdatesSection(SectionBuilder &builder) {
 		.title = rpl::single(u"Проверить обновления"_q),
 		.st = &st::settingsButtonNoIcon,
 		.onClick = [=] {
-			Wenzgram::Updater::Instance().checkNow();
+			Wenzgram::Updater::Service::Instance().checkNow();
 			controller->showToast(u"Проверяем обновления на GitHub..."_q);
 		},
 		.keywords = { u"check"_q },
 	});
 
-	const auto updater = &Wenzgram::Updater::Instance();
+	const auto updater = &Wenzgram::Updater::Service::Instance();
 	const auto &lifetime = controller->lifetime();
 	updater->ready() | rpl::on_next([=] {
 		if (install) {

@@ -68,52 +68,52 @@ constexpr auto kUserAgent = "Wenzgram-Updater/1.0";
 
 } // namespace
 
-Updater &Updater::Instance() {
-	static auto instance = Updater();
+Service &Service::Instance() {
+	static auto instance = Service();
 	return instance;
 }
 
-Updater::Updater()
+Service::Service()
 : _checkTimer([=] { checkNow(); }) {
 }
 
-QString Updater::currentVersion() const {
+QString Service::currentVersion() const {
 	return QString::fromLatin1(Wenzgram::kVersion);
 }
 
-QString Updater::latestVersion() const {
+QString Service::latestVersion() const {
 	return _latestVersion;
 }
 
-State Updater::state() const {
+State Service::state() const {
 	return _state;
 }
 
-rpl::producer<> Updater::checking() const {
+rpl::producer<> Service::checking() const {
 	return _checking.events();
 }
 
-rpl::producer<> Updater::isLatest() const {
+rpl::producer<> Service::isLatest() const {
 	return _isLatest.events();
 }
 
-rpl::producer<> Updater::failed() const {
+rpl::producer<> Service::failed() const {
 	return _failed.events();
 }
 
-rpl::producer<> Updater::ready() const {
+rpl::producer<> Service::ready() const {
 	return _ready.events();
 }
 
-rpl::producer<float64> Updater::progress() const {
+rpl::producer<float64> Service::progress() const {
 	return _progress.events();
 }
 
-bool Updater::isReady() const {
+bool Service::isReady() const {
 	return _state == State::Ready && QFile::exists(_downloadPath);
 }
 
-void Updater::start(bool force) {
+void Service::start(bool force) {
 	if (!Wenzgram::autoUpdateEnabled()) {
 		return;
 	}
@@ -125,11 +125,11 @@ void Updater::start(bool force) {
 	}
 }
 
-void Updater::scheduleNextCheck() {
+void Service::scheduleNextCheck() {
 	_checkTimer.callOnce(kCheckInterval);
 }
 
-void Updater::checkNow() {
+void Service::checkNow() {
 	if (_state == State::Checking || _state == State::Downloading) {
 		return;
 	}
@@ -157,7 +157,7 @@ void Updater::checkNow() {
 	});
 }
 
-void Updater::handleReleaseResponse(const QByteArray &bytes) {
+void Service::handleReleaseResponse(const QByteArray &bytes) {
 	const auto document = QJsonDocument::fromJson(bytes);
 	if (!document.isObject()) {
 		fail();
@@ -195,7 +195,7 @@ void Updater::handleReleaseResponse(const QByteArray &bytes) {
 	downloadAsset(downloadUrl);
 }
 
-void Updater::downloadAsset(const QString &url) {
+void Service::downloadAsset(const QString &url) {
 	_state = State::Downloading;
 	const auto folder = UpdatesFolder();
 	QDir().mkpath(folder);
@@ -248,13 +248,13 @@ void Updater::downloadAsset(const QString &url) {
 	});
 }
 
-void Updater::fail() {
+void Service::fail() {
 	_state = State::None;
 	_failed.fire({});
 	scheduleNextCheck();
 }
 
-void Updater::installUpdate() {
+void Service::installUpdate() {
 	if (!isReady()) {
 		return;
 	}

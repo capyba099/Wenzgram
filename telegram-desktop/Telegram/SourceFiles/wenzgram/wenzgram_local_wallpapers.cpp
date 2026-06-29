@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wenzgram/wenzgram_settings.h"
 
 #include "base/flat_map.h"
+#include "core/application.h"
 #include "core/file_utilities.h"
 #include "data/data_peer.h"
 #include "data/data_wall_paper.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
+#include "ui/chat/attach/attach_extensions.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
@@ -48,7 +50,10 @@ public:
 	[[nodiscard]] std::optional<Data::WallPaper> paper(PeerId peerId) {
 		ensureLoaded(peerId);
 		const auto i = _cache.find(peerId);
-		return (i != end(_cache)) ? i->second.paper : std::nullopt;
+		if (i != end(_cache)) {
+			return i->second.paper;
+		}
+		return std::nullopt;
 	}
 
 	[[nodiscard]] QImage image(PeerId peerId) {
@@ -97,7 +102,7 @@ private:
 	}
 
 	[[nodiscard]] QString peerPath(PeerId peerId) const {
-		return rootPath() + QString::number(peerId.value) + u'/'_q;
+		return rootPath() + QString::number(peerId.value) + u"/"_q;
 	}
 
 	[[nodiscard]] QString dataPath(PeerId peerId) const {
@@ -255,7 +260,7 @@ void chooseFromFile(
 		ShowLocalWallpaperBox(controller, peer, local);
 	});
 	FileDialog::GetOpenPath(
-		controller->widget().get(),
+		Core::App().getFileDialogParent(),
 		u"Выберите обои для чата"_q,
 		filters.join(u";;"_q),
 		crl::guard(controller, callback));

@@ -435,7 +435,7 @@ MainWidget::MainWidget(
 		Core::UpdateChecker checker;
 		checker.start();
 	} else {
-		Wenzgram::Updater::Instance().start();
+		Wenzgram::Updater::Service::Instance().start();
 	}
 
 	cSetOtherOnline(0);

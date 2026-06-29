@@ -26,6 +26,7 @@ FILES=(
 	"Telegram/SourceFiles/storage/storage_domain.h"
 	"Telegram/SourceFiles/storage/storage_domain.cpp"
 	"Telegram/SourceFiles/storage/localstorage.cpp"
+	"Telegram/SourceFiles/core/application.h"
 	"Telegram/SourceFiles/core/application.cpp"
 	"Telegram/SourceFiles/window/window_lock_widgets.cpp"
 	"Telegram/SourceFiles/wenzgram/wenzgram_version.h"
