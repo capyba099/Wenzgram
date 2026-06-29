@@ -2,6 +2,11 @@ name: Build Wenzgram Windows Release
 
 on:
   workflow_dispatch:
+    inputs:
+      force_rebuild_libs:
+        description: 'Force rebuild libraries cache (~4 hours)'
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -11,15 +16,99 @@ permissions:
   contents: write
 
 env:
-  PREPARE_PATH: Telegram/build/prepare/prepare.py
   BUILD_CONFIG: Release
-  TDESKTOP_REF: dev
 
 jobs:
+  check-cache:
+    name: Check libraries cache
+    runs-on: windows-latest
+    timeout-minutes: 15
+    outputs:
+      libs-cached: ${{ steps.verify.outputs.libs-cached }}
+      cache-key: ${{ steps.config.outputs.cache-key }}
+      tdesktop-ref: ${{ steps.config.outputs.tdesktop-ref }}
+      sdk: ${{ steps.config.outputs.sdk }}
+
+    steps:
+      - name: Checkout Wenzgram
+        uses: actions/checkout@v4
+
+      - name: Read CI config
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          source ci/windows-build.env
+          echo "CACHE_KEY=$LIBS_CACHE_KEY" >> "$GITHUB_ENV"
+          echo "TDESKTOP_REF=$TDESKTOP_REF" >> "$GITHUB_ENV"
+          echo "SDK=$WIN_SDK_VERSION" >> "$GITHUB_ENV"
+          echo "cache-key=$LIBS_CACHE_KEY" >> "$GITHUB_OUTPUT"
+          echo "tdesktop-ref=$TDESKTOP_REF" >> "$GITHUB_OUTPUT"
+          echo "sdk=$WIN_SDK_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare directories on D drive
+        shell: cmd
+        run: |
+          mkdir %GITHUB_WORKSPACE%\TBuild\Libraries\win64
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Lookup ThirdParty cache
+        uses: actions/cache/restore@v4
+        id: cache-third-party
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+          lookup-only: true
+
+      - name: Lookup Libraries cache
+        uses: actions/cache/restore@v4
+        id: cache-libs
+        with:
+          path: ${{ env.LibrariesPath }}
+          key: ${{ runner.os }}-${{ runner.arch }}-libs-${{ env.CACHE_KEY }}
+          lookup-only: true
+
+      - name: Lookup Qt cache
+        uses: actions/cache/restore@v4
+        id: cache-qt
+        with:
+          path: ${{ env.LibrariesPath }}
+          key: ${{ runner.os }}-${{ runner.arch }}-qt6-${{ env.CACHE_KEY }}
+          lookup-only: true
+
+      - name: Verify cache status
+        id: verify
+        shell: bash
+        env:
+          FORCE_REBUILD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_rebuild_libs == 'true' }}
+        run: |
+          if [ "$FORCE_REBUILD" = "true" ]; then
+            echo "Force rebuild requested."
+            echo "libs-cached=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.cache-third-party.outputs.cache-hit }}" = "true" ] \
+            && [ "${{ steps.cache-libs.outputs.cache-hit }}" = "true" ] \
+            && [ "${{ steps.cache-qt.outputs.cache-hit }}" = "true" ]; then
+            echo "All library caches found for key ${CACHE_KEY}."
+            echo "libs-cached=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Library cache miss for key ${CACHE_KEY}."
+            echo "libs-cached=false" >> "$GITHUB_OUTPUT"
+          fi
+
   prepare-libraries:
     name: Prepare libraries (cached)
+    needs: check-cache
+    if: needs.check-cache.outputs.libs-cached != 'true'
     runs-on: windows-latest
     timeout-minutes: 240
+
+    env:
+      CACHE_KEY: ${{ needs.check-cache.outputs.cache-key }}
+      TDESKTOP_REF: ${{ needs.check-cache.outputs.tdesktop-ref }}
+      SDK: ${{ needs.check-cache.outputs.sdk }}
 
     defaults:
       run:
@@ -39,10 +128,16 @@ jobs:
 
       - name: Clone Telegram Desktop with submodules
         shell: bash
+        env:
+          TDESKTOP_REF: ${{ env.TDESKTOP_REF }}
         run: |
-          git clone --recursive --depth 1 -b "${TDESKTOP_REF}" \
+          set -euo pipefail
+          git clone --recursive --filter=blob:none --no-checkout \
             https://github.com/telegramdesktop/tdesktop.git \
             "$TBUILD/tdesktop"
+          cd "$TBUILD/tdesktop"
+          git checkout "$TDESKTOP_REF"
+          git submodule update --init --recursive --depth 1
 
       - name: Apply Wenzgram patches
         shell: bash
@@ -56,16 +151,10 @@ jobs:
           sed -i 's|gyp dump_syms.gyp --format=msvs|REM gyp dump_syms.gyp --format=msvs|' "$PREPARE_PY"
           sed -i 's|msbuild -m dump_syms.vcxproj.*|REM dump_syms skipped in CI|' "$PREPARE_PY"
 
-      - name: Read SDK version and fix CMake
+      - name: Fix CMake
         shell: bash
         run: |
-          DOCPATH=$TBUILD/tdesktop/docs/building-win.md
-          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
-          echo "SDK=$SDK" >> $GITHUB_ENV
           sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
-          echo "$(sha256sum $TBUILD/tdesktop/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
-          echo "$SDK" >> CACHE_KEY.txt
-          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
 
       - uses: Eden-CI/msvc-dev-cmd@master
         name: Native Tools Command Prompt
@@ -115,8 +204,18 @@ jobs:
 
       - name: Prepare libraries (Release only)
         id: prepare_libs
+        if: steps.cache-third-party.outputs.cache-hit != 'true' || steps.cache-libs.outputs.cache-hit != 'true' || steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           %TBUILD%\tdesktop\Telegram\build\prepare\win.bat silent qt6
+
+      - name: Verify libraries are present
+        if: steps.prepare_libs.outcome == 'skipped'
+        shell: bash
+        run: |
+          if [ ! -d "$LibrariesPath/local" ]; then
+            echo "Expected cached libraries are missing." >&2
+            exit 1
+          fi
 
       - name: Free disk space after prepare
         if: success()
@@ -126,14 +225,14 @@ jobs:
           rm -rf "$TBUILD/tdesktop/.git" "$TBUILD/Wenzgram-src/.git" 2>/dev/null || true
 
       - name: Save ThirdParty cache
-        if: steps.prepare_libs.outcome == 'success'
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: ${{ env.TBUILD }}\ThirdParty
           key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
 
       - name: Save Libraries cache
-        if: steps.prepare_libs.outcome == 'success'
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
@@ -145,7 +244,7 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-libs-${{ env.CACHE_KEY }}
 
       - name: Save Qt cache
-        if: steps.prepare_libs.outcome == 'success'
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
@@ -155,9 +254,19 @@ jobs:
 
   build-windows:
     name: Build Wenzgram.exe (Release)
-    needs: prepare-libraries
+    needs: [check-cache, prepare-libraries]
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.check-cache.result == 'success' &&
+      (needs.check-cache.outputs.libs-cached == 'true' || needs.prepare-libraries.result == 'success')
     runs-on: windows-latest
     timeout-minutes: 180
+
+    env:
+      CACHE_KEY: ${{ needs.check-cache.outputs.cache-key }}
+      TDESKTOP_REF: ${{ needs.check-cache.outputs.tdesktop-ref }}
+      SDK: ${{ needs.check-cache.outputs.sdk }}
 
     defaults:
       run:
@@ -177,10 +286,16 @@ jobs:
 
       - name: Clone Telegram Desktop with submodules
         shell: bash
+        env:
+          TDESKTOP_REF: ${{ env.TDESKTOP_REF }}
         run: |
-          git clone --recursive --depth 1 -b "${TDESKTOP_REF}" \
+          set -euo pipefail
+          git clone --recursive --filter=blob:none --no-checkout \
             https://github.com/telegramdesktop/tdesktop.git \
             "$TBUILD/tdesktop"
+          cd "$TBUILD/tdesktop"
+          git checkout "$TDESKTOP_REF"
+          git submodule update --init --recursive --depth 1
 
       - name: Apply Wenzgram patches
         shell: bash
@@ -194,16 +309,10 @@ jobs:
           sed -i 's|gyp dump_syms.gyp --format=msvs|REM gyp dump_syms.gyp --format=msvs|' "$PREPARE_PY"
           sed -i 's|msbuild -m dump_syms.vcxproj.*|REM dump_syms skipped in CI|' "$PREPARE_PY"
 
-      - name: Read SDK version and fix CMake
+      - name: Fix CMake
         shell: bash
         run: |
-          DOCPATH=$TBUILD/tdesktop/docs/building-win.md
-          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
-          echo "SDK=$SDK" >> $GITHUB_ENV
           sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
-          echo "$(sha256sum $TBUILD/tdesktop/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
-          echo "$SDK" >> CACHE_KEY.txt
-          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
 
       - uses: Eden-CI/msvc-dev-cmd@master
         name: Native Tools Command Prompt
@@ -222,8 +331,6 @@ jobs:
         with:
           path: ${{ env.TBUILD }}\ThirdParty
           key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-third-party-
 
       - name: Restore Libraries cache
         uses: actions/cache/restore@v4
@@ -235,8 +342,6 @@ jobs:
             ${{ env.LibrariesPath }}\cache_keys\*
             !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
           key: ${{ runner.os }}-${{ runner.arch }}-libs-${{ env.CACHE_KEY }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-libs-
 
       - name: Restore Qt cache
         uses: actions/cache/restore@v4
@@ -245,8 +350,6 @@ jobs:
             ${{ env.LibrariesPath }}\[qQ]t[_-]*
             ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
           key: ${{ runner.os }}-${{ runner.arch }}-qt6-${{ env.CACHE_KEY }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-qt6-
 
       - name: Verify libraries are present
         shell: bash
