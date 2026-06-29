@@ -210,11 +210,10 @@ void Service::downloadAsset(const QString &url) {
 		this,
 		[=](qint64 received, qint64 total) {
 			if (total > 0) {
-				const auto value = std::clamp(
+				_progress.fire_copy(std::clamp(
 					received / float64(total),
 					0.,
-					1.);
-				_progress.fire(value);
+					1.));
 			}
 		});
 	connect(_downloadReply, &QNetworkReply::finished, this, [=] {

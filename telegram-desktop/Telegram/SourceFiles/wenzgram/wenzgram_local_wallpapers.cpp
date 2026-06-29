@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDataStream>
 #include <QtCore/QFile>
 
+#include <map>
+
 namespace Wenzgram::LocalWallpapers {
 namespace {
 
@@ -83,7 +85,7 @@ public:
 	}
 
 	void remove(PeerId peerId) {
-		_cache.remove(peerId);
+		_cache.erase(peerId);
 		removeFromDisk(peerId);
 		_changed.fire_copy(peerId);
 	}
@@ -157,7 +159,7 @@ private:
 		if (!image.loadFromData(imageData)) {
 			return;
 		}
-		_cache[peerId] = Entry{ *paper, std::move(image) };
+		_cache.emplace(peerId, Entry{ *paper, std::move(image) });
 	}
 
 	void write(PeerId peerId, const Entry &entry) {
@@ -189,7 +191,7 @@ private:
 	}
 
 	const not_null<Main::Session*> _session;
-	base::flat_map<PeerId, Entry> _cache;
+	std::map<PeerId, Entry> _cache;
 	rpl::event_stream<PeerId> _changed;
 
 };

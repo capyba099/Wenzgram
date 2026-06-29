@@ -215,22 +215,21 @@ void BuildUpdatesSection(SectionBuilder &builder) {
 	});
 
 	const auto updater = &Wenzgram::Updater::Service::Instance();
-	const auto &lifetime = controller->lifetime();
-	updater->ready() | rpl::on_next([=] {
-		if (install) {
+	if (install) {
+		updater->ready() | rpl::on_next([=] {
 			install->setVisible(true);
-		}
-		controller->showToast(
-			u"Доступна версия "_q + updater->latestVersion());
-	}, lifetime);
+			controller->showToast(
+				u"Доступна версия "_q + updater->latestVersion());
+		}, install->lifetime());
 
-	updater->isLatest() | rpl::on_next([=] {
-		controller->showToast(u"Установлена последняя версия"_q);
-	}, lifetime);
+		updater->isLatest() | rpl::on_next([=] {
+			controller->showToast(u"Установлена последняя версия"_q);
+		}, install->lifetime());
 
-	updater->failed() | rpl::on_next([=] {
-		controller->showToast(u"Не удалось проверить обновления"_q);
-	}, lifetime);
+		updater->failed() | rpl::on_next([=] {
+			controller->showToast(u"Не удалось проверить обновления"_q);
+		}, install->lifetime());
+	}
 }
 
 void BuildSecuritySection(SectionBuilder &builder) {

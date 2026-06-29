@@ -35,7 +35,7 @@ namespace {
 		size,
 		Qt::KeepAspectRatioByExpanding,
 		Qt::SmoothTransformation);
-	auto result = Ui::PixmapFromImage(image);
+	auto result = Ui::PixmapFromImage(std::move(image));
 	result.setDevicePixelRatio(style::DevicePixelRatio());
 	return result;
 }
@@ -73,10 +73,10 @@ void ShowLocalWallpaperBox(
 			} else if (hasLocal) {
 				const auto current = image(&peer->session(), peer->id);
 				if (!current.isNull()) {
-					const auto scaled = Ui::PixmapFromImage(current.scaled(
+					const auto scaled = Ui::PixmapFromImage(std::move(current.scaled(
 						widget->size() * style::DevicePixelRatio(),
 						Qt::KeepAspectRatioByExpanding,
-						Qt::SmoothTransformation));
+						Qt::SmoothTransformation)));
 					p.drawPixmap(0, 0, scaled);
 					return;
 				}
