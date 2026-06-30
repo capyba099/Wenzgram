@@ -257,12 +257,12 @@ void WenzgramSettings::setupContent() {
 	Ui::AddSkip(content);
 	const auto versionWrap = content->add(object_ptr<Ui::FixedHeightWidget>(
 		content,
-		st::boxLabel.style.font->height + st::settingsThumbSkip));
+		st::defaultFlatLabel.style.font->height + st::settingsThumbSkip));
 	const auto version = Ui::CreateChild<Ui::FlatLabel>(
 		versionWrap,
 		rpl::single(
 			u"Текущая версия: "_q + QLatin1String(Wenzgram::kVersion)),
-		st::boxLabel);
+		st::defaultFlatLabel);
 	version->setAttribute(Qt::WA_TransparentForMouseEvents);
 	versionWrap->widthValue(
 	) | rpl::on_next([=](int width) {

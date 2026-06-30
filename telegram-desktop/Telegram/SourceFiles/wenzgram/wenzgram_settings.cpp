@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
-#include "window/window_controller.h"
 
 #include <QLocale>
 
@@ -35,9 +34,7 @@ void RefreshDialogsLayout() {
 }
 
 void RefreshWindowTitles() {
-	Core::App().enumerateWindows([](not_null<Window::Controller*> window) {
-		window->widget()->updateTitle();
-	});
+	Core::App().updateWindowTitles();
 }
 
 void ApplySetting(std::string_view key, bool value) {

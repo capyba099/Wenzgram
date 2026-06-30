@@ -326,6 +326,7 @@ public:
 	void postponeCall(FnMut<void()> &&callable);
 	void refreshGlobalProxy();
 	void refreshApplicationIcon();
+	void updateWindowTitles();
 
 	void quitPreventFinished();
 
@@ -370,7 +371,6 @@ private:
 	void startTray();
 
 	void createTray();
-	void updateWindowTitles();
 	void setLastActiveWindow(Window::Controller *window);
 	void showAccount(not_null<Main::Account*> account);
 	void enumerateWindows(

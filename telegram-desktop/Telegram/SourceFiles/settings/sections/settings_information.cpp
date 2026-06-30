@@ -88,9 +88,9 @@ not_null<Ui::SettingsButton*> AddRow(
 	const QString &copyButton,
 	Fn<void()> edit,
 	IconDescriptor &&descriptor,
-	bool markedValue = false,
-	Fn<void(not_null<Ui::PopupMenu*>)> menuExtender = nullptr,
-	const style::icon *copyIcon = nullptr);
+	bool markedValue,
+	Fn<void(not_null<Ui::PopupMenu*>)> menuExtender,
+	const style::icon *copyIcon);
 
 struct InformationHighlightTargets {
 	QPointer<Ui::RpWidget> photo;
