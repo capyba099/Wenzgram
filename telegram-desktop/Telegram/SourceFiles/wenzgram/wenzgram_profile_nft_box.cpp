@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wenzgram::ProfileNft {
 namespace {
 
+using Settings::AddButtonWithLabel;
+
 void AppendGiftRows(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
@@ -76,7 +78,8 @@ void ShowProfileNftPicker(not_null<Window::SessionController*> controller) {
 		loading->show();
 
 		const auto state = box->lifetime().make_state<QString>();
-		const auto request = [=](QString offset) {
+		const auto request = std::make_shared<Fn<void(QString)>>();
+		*request = [=](QString offset) {
 			Data::MyUniqueGiftsSlice(
 				session,
 				Data::MyUniqueType::OnlyOwned,
@@ -102,12 +105,12 @@ void ShowProfileNftPicker(not_null<Window::SessionController*> controller) {
 						st::settingsButtonNoIcon);
 					more->setClickedCallback([=] {
 						more->hide();
-						request(descriptor.offset);
+						(*request)(descriptor.offset);
 					});
 				}
 			}, box->lifetime());
 		};
-		request(QString());
+		(*request)(QString());
 
 		if (hasOwn(session)) {
 			box->addButton(rpl::single(u"Убрать NFT из профиля"_q), [=] {

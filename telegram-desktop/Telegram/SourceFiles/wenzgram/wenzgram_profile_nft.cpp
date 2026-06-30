@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 
 #include <QtCore/QBuffer>

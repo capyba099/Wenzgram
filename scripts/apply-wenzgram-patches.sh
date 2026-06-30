@@ -50,6 +50,7 @@ FILES=(
 	"Telegram/SourceFiles/settings/sections/settings_main.cpp"
 	"Telegram/SourceFiles/settings/sections/settings_information.cpp"
 	"Telegram/SourceFiles/info/profile/info_profile_top_bar.cpp"
+	"Telegram/SourceFiles/info/profile/info_profile_top_bar.h"
 	"Telegram/SourceFiles/data/data_session.cpp"
 	"Telegram/SourceFiles/history/history_item.cpp"
 	"Telegram/SourceFiles/history/view/history_view_element.cpp"
