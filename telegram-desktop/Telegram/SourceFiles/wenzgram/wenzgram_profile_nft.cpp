@@ -10,39 +10,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wenzgram/wenzgram_profile_nft_box.h"
 #include "wenzgram/wenzgram_settings.h"
 
-#include "api/api_sending.h"
-#include "apiwrap.h"
-#include "base/random.h"
-#include "data/data_histories.h"
 #include "data/data_peer.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
-#include "data/data_user.h"
-#include "dialogs/dialogs_main_list.h"
-#include "dialogs/dialogs_row.h"
-#include "history/history.h"
-#include "history/history_item.h"
+#include "data/data_star_gift.h"
 #include "main/main_session.h"
 #include "storage/storage_account.h"
 #include "ui/painter.h"
-#include "ui/ui_utility.h"
+#include "window/window_session_controller.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QDataStream>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
-#include <QtCore/QJsonDocument>
-#include <QtCore/QJsonObject>
-
-#include <map>
 
 namespace Wenzgram::ProfileNft {
 namespace {
 
 constexpr auto kMagic = quint32(0x575a4e46); // 'WZNF'
-const auto kSyncPrefix = u"\u2063WZ_NFT:"_q;
-const auto kRequestPrefix = u"\u2063WZ_NFT_REQ"_q;
-constexpr auto kBroadcastLimit = 30;
-constexpr auto kThumbSize = 96;
 
 [[nodiscard]] QString databasePath(not_null<Main::Session*> session) {
 	auto path = session->local().cachePath();
@@ -56,75 +42,30 @@ constexpr auto kThumbSize = 96;
 	return databasePath(session) + u"wenzgram/profile_nft/own/data"_q;
 }
 
-[[nodiscard]] QString peerDataPath(
-		not_null<Main::Session*> session,
-		PeerId peerId) {
-	return databasePath(session)
-		+ u"wenzgram/profile_nft/peers/"_q
-		+ QString::number(peerId.value)
-		+ u"/data"_q;
-}
-
-[[nodiscard]] QByteArray EncodeImage(const QImage &source) {
-	auto image = source;
-	if (image.isNull()) {
+[[nodiscard]] QImage PreviewFromDocument(not_null<DocumentData*> document) {
+	auto media = document->createMediaView();
+	media->checkStickerSmall();
+	if (!media->loaded()) {
 		return {};
 	}
-	if (image.width() > kThumbSize || image.height() > kThumbSize) {
-		image = image.scaled(
-			QSize(kThumbSize, kThumbSize),
-			Qt::KeepAspectRatio,
-			Qt::SmoothTransformation);
+	if (const auto sticker = media->getStickerSmall()) {
+		return sticker->original();
 	}
-	QByteArray bytes;
-	QBuffer buffer(&bytes);
-	buffer.open(QIODevice::WriteOnly);
-	image.save(&buffer, "JPG", 82);
-	return bytes.toBase64(QByteArray::Base64Encoding);
+	return {};
 }
 
-[[nodiscard]] QImage DecodeImage(const QByteArray &encoded) {
-	if (encoded.isEmpty()) {
-		return {};
-	}
-	QImage image;
-	image.loadFromData(QByteArray::fromBase64(encoded), "JPG");
-	return image;
-}
+[[nodiscard]] Entry EntryFromGift(const Data::SavedStarGift &gift) {
+	const auto &unique = gift.info.unique;
+	Expects(unique != nullptr);
 
-[[nodiscard]] QString EncodePayload(const Entry &entry) {
-	auto object = QJsonObject{
-		{ u"v"_q, 1 },
-		{ u"id"_q, entry.id },
-		{ u"title"_q, entry.title },
-		{ u"img"_q, QString::fromLatin1(EncodeImage(entry.image)) },
+	auto entry = Entry{
+		.uniqueId = unique->id,
+		.slug = unique->slug,
+		.title = Data::UniqueGiftName(*unique),
+		.stickerId = unique->model.document->id,
 	};
-	return kSyncPrefix + QString::fromUtf8(
-		QJsonDocument(object).toJson(QJsonDocument::Compact));
-}
-
-[[nodiscard]] std::optional<Entry> DecodePayload(const QString &text) {
-	if (!text.startsWith(kSyncPrefix)) {
-		return std::nullopt;
-	}
-	const auto json = text.mid(kSyncPrefix.size());
-	const auto document = QJsonDocument::fromJson(json.toUtf8());
-	if (!document.isObject()) {
-		return std::nullopt;
-	}
-	const auto object = document.object();
-	const auto title = object.value(u"title"_q).toString();
-	const auto id = object.value(u"id"_q).toString();
-	const auto image = DecodeImage(
-		object.value(u"img"_q).toString().toLatin1());
-	if (title.isEmpty() || image.isNull()) {
-		return std::nullopt;
-	}
-	return Entry{
-		.id = id.isEmpty() ? title : id,
-		.title = title,
-		.image = std::move(image),
-	};
+	entry.preview = PreviewFromDocument(unique->model.document);
+	return entry;
 }
 
 [[nodiscard]] std::optional<Entry> ReadFile(const QString &path) {
@@ -135,27 +76,35 @@ constexpr auto kThumbSize = 96;
 	QDataStream stream(&file);
 	stream.setVersion(QDataStream::Qt_5_1);
 	quint32 magic = 0;
-	QString id;
+	quint64 uniqueId = 0;
+	QString slug;
 	QString title;
+	quint64 stickerId = 0;
 	QByteArray imageData;
-	stream >> magic >> id >> title >> imageData;
+	stream >> magic >> uniqueId >> slug >> title >> stickerId >> imageData;
 	if (stream.status() != QDataStream::Ok || magic != kMagic) {
 		return std::nullopt;
 	}
 	auto image = QImage();
-	if (!image.loadFromData(imageData)) {
+	if (!imageData.isEmpty() && !image.loadFromData(imageData)) {
 		return std::nullopt;
 	}
-	return Entry{ id, title, std::move(image) };
+	return Entry{
+		.uniqueId = CollectibleId(uniqueId),
+		.slug = slug,
+		.title = title,
+		.stickerId = DocumentId(stickerId),
+		.preview = std::move(image),
+	};
 }
 
 void WriteFile(const QString &path, const Entry &entry) {
 	QDir().mkpath(QFileInfo(path).absolutePath());
 	QByteArray imageData;
-	{
+	if (!entry.preview.isNull()) {
 		QBuffer buffer(&imageData);
 		buffer.open(QIODevice::WriteOnly);
-		entry.image.save(&buffer, "PNG");
+		entry.preview.save(&buffer, "PNG");
 	}
 	QFile file(path);
 	if (!file.open(QIODevice::WriteOnly)) {
@@ -163,7 +112,12 @@ void WriteFile(const QString &path, const Entry &entry) {
 	}
 	QDataStream stream(&file);
 	stream.setVersion(QDataStream::Qt_5_1);
-	stream << kMagic << entry.id << entry.title << imageData;
+	stream << kMagic
+		<< quint64(entry.uniqueId)
+		<< entry.slug
+		<< entry.title
+		<< quint64(entry.stickerId)
+		<< imageData;
 }
 
 void RemoveFile(const QString &path) {
@@ -181,16 +135,21 @@ public:
 		if (!_ownLoaded) {
 			_own = ReadFile(ownDataPath(_session));
 			_ownLoaded = true;
+			ensurePreview();
 		}
 		return _own;
 	}
 
 	void setOwn(Entry entry) {
-		_own = entry;
+		if (entry.preview.isNull() && entry.stickerId) {
+			if (const auto document = _session->data().document(entry.stickerId)) {
+				entry.preview = PreviewFromDocument(document);
+			}
+		}
+		_own = std::move(entry);
 		_ownLoaded = true;
-		WriteFile(ownDataPath(_session), entry);
+		WriteFile(ownDataPath(_session), *_own);
 		_ownChanged.fire({});
-		broadcastOwn();
 	}
 
 	void removeOwn() {
@@ -200,134 +159,44 @@ public:
 		_ownChanged.fire({});
 	}
 
-	[[nodiscard]] std::optional<Entry> forPeer(PeerId peerId) {
-		ensurePeerLoaded(peerId);
-		const auto i = _peers.find(peerId);
-		if (i != end(_peers)) {
-			return i->second;
-		}
-		return std::nullopt;
-	}
-
-	void setForPeer(PeerId peerId, Entry entry) {
-		_peers[peerId] = std::move(entry);
-		WriteFile(peerDataPath(_session, peerId), _peers[peerId]);
-		_peerChanged.fire_copy(peerId);
-	}
-
-	void removeForPeer(PeerId peerId) {
-		_peers.erase(peerId);
-		RemoveFile(peerDataPath(_session, peerId));
-		_peerChanged.fire_copy(peerId);
-	}
-
 	[[nodiscard]] rpl::producer<std::optional<Entry>> ownValue() {
 		return rpl::single(own()) | rpl::then(
 			_ownChanged.events() | rpl::map([=] { return own(); })
 		);
 	}
 
-	[[nodiscard]] rpl::producer<std::optional<Entry>> forPeerValue(PeerId peerId) {
-		return rpl::single(forPeer(peerId)) | rpl::then(
-			_peerChanged.events(
-			) | rpl::filter([=](PeerId changed) {
-				return changed == peerId;
-			}) | rpl::map([=] {
-				return forPeer(peerId);
-			})
-		);
-	}
-
-	void sendText(not_null<PeerData*> peer, const QString &text) {
-		if (!peer->isUser() || peer->isSelf()) {
-			return;
-		}
-		const auto history = _session->data().history(peer);
-		auto action = Api::SendAction(history);
-		action.options.silent = true;
-		action.clearDraft = false;
-		action.generateLocal = true;
-		auto message = Api::MessageToSend(action);
-		message.textWithTags = { text, TextWithTags::Tags() };
-		_session->api().sendMessage(std::move(message));
-	}
-
-	void broadcastOwn() {
-		if (!profileNftEnabled()) {
-			return;
-		}
-		const auto current = own();
-		if (!current) {
-			return;
-		}
-		const auto payload = EncodePayload(*current);
-		auto sent = 0;
-		const auto &rows = _session->data().chatsList()->indexed()->all();
-		for (const auto &row : rows) {
-			if (sent >= kBroadcastLimit) {
-				break;
-			}
-			const auto history = row->history();
-			if (!history) {
-				continue;
-			}
-			const auto peer = history->peer;
-			if (!peer->isUser() || peer->isSelf()) {
-				continue;
-			}
-			sendText(peer, payload);
-			++sent;
-		}
-	}
-
-	void requestFromPeer(not_null<PeerData*> peer) {
-		if (!profileNftEnabled() || peer->isSelf() || !peer->isUser()) {
-			return;
-		}
-		if (forPeer(peer->id)) {
-			return;
-		}
-		sendText(peer, kRequestPrefix);
-	}
-
-	void processIncoming(not_null<HistoryItem*> item) {
-		if (!profileNftEnabled() || !item->isRegular()) {
-			return;
-		}
-		const auto from = item->from();
-		if (!from || !from->isUser()) {
-			return;
-		}
-		const auto text = item->originalText().text;
-		if (text == kRequestPrefix) {
-			const auto current = own();
-			if (!current) {
-				return;
-			}
-			sendText(from, EncodePayload(*current));
-			return;
-		}
-		if (const auto entry = DecodePayload(text)) {
-			setForPeer(from->id, *entry);
-		}
-	}
-
 private:
-	void ensurePeerLoaded(PeerId peerId) {
-		if (_peers.contains(peerId)) {
+	void ensurePreview() {
+		if (!_own || !_own->preview.isNull() || !_own->stickerId) {
 			return;
 		}
-		if (const auto loaded = ReadFile(peerDataPath(_session, peerId))) {
-			_peers.emplace(peerId, *loaded);
+		const auto document = _session->data().document(_own->stickerId);
+		if (!document) {
+			return;
 		}
+		auto media = document->createMediaView();
+		media->checkStickerSmall();
+		if (media->loaded()) {
+			if (const auto sticker = media->getStickerSmall()) {
+				_own->preview = sticker->original();
+				WriteFile(ownDataPath(_session), *_own);
+				_ownChanged.fire({});
+			}
+			return;
+		}
+		_previewLifetime = _session->downloaderTaskFinished(
+		) | rpl::filter([=] {
+			return media->loaded();
+		}) | rpl::take(1) | rpl::on_next([=] {
+			ensurePreview();
+		});
 	}
 
 	const not_null<Main::Session*> _session;
 	bool _ownLoaded = false;
 	std::optional<Entry> _own;
-	std::map<PeerId, Entry> _peers;
 	rpl::event_stream<> _ownChanged;
-	rpl::event_stream<PeerId> _peerChanged;
+	rpl::lifetime _previewLifetime;
 
 };
 
@@ -345,27 +214,7 @@ private:
 	return *result;
 }
 
-[[nodiscard]] std::optional<Entry> EntryForPeer(not_null<PeerData*> peer) {
-	auto &manager = Get(&peer->session());
-	if (peer->isSelf()) {
-		return manager.own();
-	}
-	return manager.forPeer(peer->id);
-}
-
 } // namespace
-
-bool isSyncMessage(not_null<HistoryItem*> item) {
-	if (!item->isRegular()) {
-		return false;
-	}
-	const auto &text = item->originalText().text;
-	return text.startsWith(kSyncPrefix) || text.startsWith(kRequestPrefix);
-}
-
-void processIncoming(not_null<HistoryItem*> item) {
-	Get(&item->history()->session()).processIncoming(item);
-}
 
 bool hasOwn(not_null<Main::Session*> session) {
 	return Get(session).own().has_value();
@@ -375,14 +224,17 @@ std::optional<Entry> own(not_null<Main::Session*> session) {
 	return Get(session).own();
 }
 
-std::optional<Entry> forPeer(
-		not_null<Main::Session*> session,
-		PeerId peerId) {
-	return Get(session).forPeer(peerId);
-}
-
 void setOwn(not_null<Main::Session*> session, Entry entry) {
 	Get(session).setOwn(std::move(entry));
+}
+
+void setOwn(
+		not_null<Main::Session*> session,
+		const Data::SavedStarGift &gift) {
+	if (!gift.info.unique) {
+		return;
+	}
+	Get(session).setOwn(EntryFromGift(gift));
 }
 
 void removeOwn(not_null<Main::Session*> session) {
@@ -393,27 +245,15 @@ rpl::producer<std::optional<Entry>> ownValue(not_null<Main::Session*> session) {
 	return Get(session).ownValue();
 }
 
-rpl::producer<std::optional<Entry>> forPeerValue(
-		not_null<Main::Session*> session,
-		PeerId peerId) {
-	return Get(session).forPeerValue(peerId);
-}
-
-void requestFromPeer(
-		not_null<Main::Session*> session,
-		not_null<PeerData*> peer) {
-	Get(session).requestFromPeer(peer);
-}
-
 void paintOnUserpic(
 		QPainter &p,
 		const QRect &geometry,
 		not_null<PeerData*> peer) {
-	if (!profileNftEnabled()) {
+	if (!profileNftEnabled() || !peer->isSelf()) {
 		return;
 	}
-	const auto entry = EntryForPeer(peer);
-	if (!entry || entry->image.isNull()) {
+	const auto entry = own(&peer->session());
+	if (!entry || entry->preview.isNull()) {
 		return;
 	}
 	const auto badgeSize = geometry.width() / 3;
@@ -422,7 +262,7 @@ void paintOnUserpic(
 		geometry.bottom() - badgeSize + 2,
 		badgeSize,
 		badgeSize);
-	auto image = entry->image.scaled(
+	auto image = entry->preview.scaled(
 		badgeSize * style::DevicePixelRatio(),
 		badgeSize * style::DevicePixelRatio(),
 		Qt::KeepAspectRatioByExpanding,
@@ -446,12 +286,8 @@ void paintOnUserpic(
 	p.drawPixmap(badgeRect, pixmap);
 }
 
-void chooseFromFile(not_null<Window::SessionController*> controller) {
-	ShowProfileNftBox(controller);
-}
-
-void showManager(not_null<Window::SessionController*> controller) {
-	ShowProfileNftBox(controller);
+void showPicker(not_null<Window::SessionController*> controller) {
+	ShowProfileNftPicker(controller);
 }
 
 } // namespace Wenzgram::ProfileNft

@@ -150,6 +150,9 @@ private:
 		not_null<Window::SessionController*> controller,
 		const Ui::Menu::MenuCallback &addAction);
 	void setupUserpicButton(not_null<Window::SessionController*> controller);
+	void setupProfileNftAddButton(
+		not_null<Window::SessionController*> controller);
+	void updateProfileNftAddGeometry(const QRect &userpicRect);
 	void setupBirthdayEffect();
 	void startUploadOverlay();
 	void setupActions(not_null<Window::SessionController*> controller);
@@ -245,6 +248,8 @@ private:
 	QRect _lastUserpicRect;
 
 	base::unique_qptr<Ui::AbstractButton> _userpicButton;
+	base::unique_qptr<Ui::IconButton> _profileNftAdd;
+	QPointer<Ui::RpWidget> _profileNftAddBg;
 
 	Ui::PeerUserpicView _userpicView;
 	InMemoryKey _userpicUniqueKey;

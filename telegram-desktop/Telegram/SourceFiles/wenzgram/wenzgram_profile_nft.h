@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_types.h"
 #include "rpl/producer.h"
 
-class HistoryItem;
 class PeerData;
 class QPainter;
 
 namespace Data {
-class WallPaper;
+struct SavedStarGift;
 } // namespace Data
 
 namespace Main {
@@ -28,41 +28,32 @@ class SessionController;
 namespace Wenzgram::ProfileNft {
 
 struct Entry {
-	QString id;
+	CollectibleId uniqueId = 0;
+	QString slug;
 	QString title;
-	QImage image;
+	DocumentId stickerId = 0;
+	QImage preview;
 };
-
-[[nodiscard]] bool isSyncMessage(not_null<HistoryItem*> item);
-void processIncoming(not_null<HistoryItem*> item);
 
 [[nodiscard]] bool hasOwn(not_null<Main::Session*> session);
 [[nodiscard]] std::optional<Entry> own(not_null<Main::Session*> session);
-[[nodiscard]] std::optional<Entry> forPeer(
-	not_null<Main::Session*> session,
-	PeerId peerId);
 
 void setOwn(
 	not_null<Main::Session*> session,
 	Entry entry);
+void setOwn(
+	not_null<Main::Session*> session,
+	const Data::SavedStarGift &gift);
 void removeOwn(not_null<Main::Session*> session);
 
 [[nodiscard]] rpl::producer<std::optional<Entry>> ownValue(
 	not_null<Main::Session*> session);
-[[nodiscard]] rpl::producer<std::optional<Entry>> forPeerValue(
-	not_null<Main::Session*> session,
-	PeerId peerId);
 
-void requestFromPeer(
-	not_null<Main::Session*> session,
-	not_null<PeerData*> peer);
 void paintOnUserpic(
 	QPainter &p,
 	const QRect &geometry,
 	not_null<PeerData*> peer);
 
-void chooseFromFile(
-	not_null<Window::SessionController*> controller);
-void showManager(not_null<Window::SessionController*> controller);
+void showPicker(not_null<Window::SessionController*> controller);
 
 } // namespace Wenzgram::ProfileNft

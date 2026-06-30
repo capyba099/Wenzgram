@@ -436,20 +436,11 @@ TopBar::TopBar(
 	setupUniqueBadgeTooltip();
 	setupButtons(controller, descriptor.source);
 	setupUserpicButton(controller);
-	if (Wenzgram::profileNftEnabled()) {
-		if (_peer->isSelf()) {
-			Wenzgram::ProfileNft::ownValue(&_peer->session()) | rpl::on_next([=] {
-				update();
-			}, lifetime());
-		} else if (_peer->isUser()) {
-			Wenzgram::ProfileNft::forPeerValue(
-				&_peer->session(),
-				_peer->id
-			) | rpl::on_next([=] {
-				update();
-			}, lifetime());
-			Wenzgram::ProfileNft::requestFromPeer(&_peer->session(), _peer);
-		}
+	setupProfileNftAddButton(controller);
+	if (Wenzgram::profileNftEnabled() && _peer->isSelf()) {
+		Wenzgram::ProfileNft::ownValue(&_peer->session()) | rpl::on_next([=] {
+			update();
+		}, lifetime());
 	}
 	if (_hasActions) {
 		_peer->session().changes().peerFlagsValue(
@@ -1437,6 +1428,58 @@ void TopBar::setupUserpicButton(
 	}, _userpicButton->lifetime());
 }
 
+void TopBar::setupProfileNftAddButton(
+		not_null<Window::SessionController*> controller) {
+	if (!_peer->isSelf()
+		|| !Wenzgram::profileNftEnabled()
+		|| _source == Source::Preview) {
+		return;
+	}
+	_profileNftAddBg = Ui::CreateChild<Ui::RpWidget>(this);
+	const auto border = st::uploadUserpicButtonBorder;
+	const auto size = st::settingsIconAdd.width() + 2 * border;
+	_profileNftAddBg->resize(size, size);
+	_profileNftAddBg->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = Painter(_profileNftAddBg);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::boxBg);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(_profileNftAddBg->rect());
+	}, _profileNftAddBg->lifetime());
+
+	_profileNftAdd = base::make_unique_q<Ui::IconButton>(
+		this,
+		st::infoTopBarQr);
+	_profileNftAdd->setIconOverride(
+		&st::settingsIconAdd,
+		&st::settingsIconAdd);
+	_profileNftAdd->setAccessibleName(u"Добавить NFT в профиль"_q);
+	_profileNftAdd->show();
+	_profileNftAdd->setClickedCallback([=] {
+		Wenzgram::ProfileNft::showPicker(controller);
+	});
+}
+
+void TopBar::updateProfileNftAddGeometry(const QRect &userpicRect) {
+	if (!_profileNftAdd) {
+		return;
+	}
+	const auto border = st::uploadUserpicButtonBorder;
+	const auto buttonSize = _profileNftAdd->size();
+	const auto left = userpicRect.right() - buttonSize.width()
+		+ st::settingsInfoUploadLeft;
+	const auto top = userpicRect.bottom() - buttonSize.height();
+	_profileNftAdd->move(left, top);
+	if (_profileNftAddBg) {
+		_profileNftAddBg->move(
+			left - border,
+			top - border);
+		_profileNftAddBg->raise();
+	}
+	_profileNftAdd->raise();
+}
+
 void TopBar::startUploadOverlay() {
 	if (_uploadOverlay && _uploadOverlay->uploading()) {
 		return;
@@ -1755,6 +1798,7 @@ void TopBar::updateLabelsPosition() {
 		}
 
 		updateGiftButtonsGeometry(progressCurrent, userpicRect);
+		updateProfileNftAddGeometry(userpicRect);
 	}
 }
 

@@ -13,6 +13,6 @@ class SessionController;
 
 namespace Wenzgram::ProfileNft {
 
-void ShowProfileNftBox(not_null<Window::SessionController*> controller);
+void ShowProfileNftPicker(not_null<Window::SessionController*> controller);
 
 } // namespace Wenzgram::ProfileNft

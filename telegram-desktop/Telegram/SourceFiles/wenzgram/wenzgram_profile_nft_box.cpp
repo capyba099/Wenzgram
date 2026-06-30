@@ -10,139 +10,109 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wenzgram/wenzgram_profile_nft.h"
 #include "wenzgram/wenzgram_settings.h"
 
-#include "base/random.h"
-#include "core/application.h"
-#include "core/file_utilities.h"
+#include "data/data_star_gift.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/chat/attach/attach_extensions.h"
-#include "ui/image/image.h"
+#include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
-#include "ui/painter.h"
-#include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
-
-#include <QtCore/QFileInfo>
+#include "styles/style_settings.h"
 
 namespace Wenzgram::ProfileNft {
 namespace {
 
-[[nodiscard]] QPixmap GeneratePreview(const QImage &image) {
-	if (image.isNull()) {
-		return QPixmap();
-	}
-	const auto size = QSize(st::boxWideWidth / 2, st::boxWideWidth / 2)
-		* style::DevicePixelRatio();
-	auto scaled = image.scaled(
-		size,
-		Qt::KeepAspectRatioByExpanding,
-		Qt::SmoothTransformation);
-	auto result = Ui::PixmapFromImage(std::move(scaled));
-	result.setDevicePixelRatio(style::DevicePixelRatio());
-	return result;
-}
-
-void ApplyImage(
+void AppendGiftRows(
+		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
-		QImage image,
-		const QString &title) {
-	if (image.isNull()) {
-		return;
+		const std::vector<Data::SavedStarGift> &gifts) {
+	const auto session = &controller->session();
+	for (const auto &gift : gifts) {
+		if (!gift.info.unique) {
+			continue;
+		}
+		const auto title = Data::UniqueGiftName(*gift.info.unique);
+		const auto button = AddButtonWithLabel(
+			container,
+			rpl::single(title),
+			rpl::single(QString()),
+			st::settingsButtonNoIcon);
+		button->setClickedCallback([=, giftData = gift] {
+			setOwn(session, giftData);
+			controller->showToast(u"NFT добавлен в профиль"_q);
+			controller->hideLayer();
+		});
 	}
-	auto entry = Entry{
-		.id = QString::number(base::RandomValue<quint64>()),
-		.title = title.isEmpty() ? u"Локальный NFT"_q : title,
-		.image = std::move(image),
-	};
-	setOwn(&controller->session(), std::move(entry));
-	controller->showToast(u"NFT профиля установлен"_q);
 }
 
 } // namespace
 
-void ShowProfileNftBox(not_null<Window::SessionController*> controller) {
+void ShowProfileNftPicker(not_null<Window::SessionController*> controller) {
 	if (!profileNftEnabled()) {
 		controller->showToast(
-			u"Включите локальные NFT в настройках Wenzgram"_q);
+			u"Включите NFT профиля в настройках Wenzgram"_q);
 		return;
 	}
 	const auto session = &controller->session();
-	const auto current = own(session);
-	const auto preview = current
-		? GeneratePreview(current->image)
-		: QPixmap();
-
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(u"Локальный NFT профиля"_q);
+		box->setTitle(u"Выберите NFT"_q);
 		box->setWidth(st::boxWideWidth);
 
 		box->addRow(object_ptr<Ui::FlatLabel>(
 			box,
-			u"NFT виден в профиле у пользователей Wenzgram. Не синхронизируется с Telegram."_q,
+			u"Выберите один из ваших NFT-подарков Telegram. Он будет виден только вам в профиле Wenzgram."_q,
 			st::boxLabel));
 
-		const auto widget = box->addRow(object_ptr<Ui::RpWidget>(box));
-		const auto side = st::boxWideWidth / 2;
-		widget->resize(side, side);
-		widget->paintRequest(
-		) | rpl::on_next([=] {
-			Painter p(widget);
-			if (!preview.isNull()) {
-				p.drawPixmap(0, 0, preview);
-			} else {
-				p.fillRect(widget->rect(), st::boxBg);
-			}
-			if (current) {
-				p.setPen(st::boxLabel.textFg);
-				p.drawText(
-					widget->rect().adjusted(8, 8, -8, -8),
-					Qt::AlignBottom | Qt::AlignHCenter,
-					current->title);
-			}
-		}, widget->lifetime());
+		const auto content = box->addRow(
+			object_ptr<Ui::VerticalLayout>(box));
+		const auto loading = Ui::CreateChild<Ui::FlatLabel>(
+			content,
+			rpl::single(u"Загрузка NFT..."_q),
+			st::boxLabel);
+		loading->show();
 
-		box->addButton(rpl::single(u"Выбрать изображение"_q), [=] {
-			auto filters = QStringList(
-				u"Images (*"_q
-				+ Ui::ImageExtensions().join(u" *"_q)
-				+ u")"_q);
-			filters.push_back(FileDialog::AllFilesFilter());
-			FileDialog::GetOpenPath(
-				Core::App().getFileDialogParent(),
-				u"Выберите NFT для профиля"_q,
-				filters.join(u";;"_q),
-				crl::guard(controller, [=](const FileDialog::OpenResult &result) {
-					if (result.paths.isEmpty()
-						&& result.remoteContent.isEmpty()) {
-						return;
-					}
-					auto loaded = Images::Read({
-						.path = result.paths.isEmpty()
-							? QString()
-							: result.paths.front(),
-						.content = result.remoteContent,
-						.forceOpaque = true,
-					}).image;
-					if (loaded.isNull()) {
-						controller->showToast(u"Не удалось открыть изображение"_q);
-						return;
-					}
-					const auto name = result.paths.isEmpty()
-						? u"Локальный NFT"_q
-						: QFileInfo(result.paths.front()).baseName();
-					ApplyImage(controller, std::move(loaded), name);
-					box->closeBox();
-				}));
-		});
+		const auto state = box->lifetime().make_state<QString>();
+		const auto request = [=](QString offset) {
+			Data::MyUniqueGiftsSlice(
+				session,
+				Data::MyUniqueType::OnlyOwned,
+				offset
+			) | rpl::on_next([=](Data::MyGiftsDescriptor &&descriptor) {
+				loading->hide();
+				if (descriptor.list.empty() && offset.isEmpty()) {
+					content->add(
+						object_ptr<Ui::FlatLabel>(
+							content,
+							u"У вас пока нет NFT-подарков в Telegram."_q,
+							st::boxLabel));
+					return;
+				}
+				AppendGiftRows(content, controller, descriptor.list);
+				if (!descriptor.offset.isEmpty()
+					&& *state != descriptor.offset) {
+					*state = descriptor.offset;
+					const auto more = AddButtonWithLabel(
+						content,
+						rpl::single(u"Показать ещё"_q),
+						rpl::single(QString()),
+						st::settingsButtonNoIcon);
+					more->setClickedCallback([=] {
+						more->hide();
+						request(descriptor.offset);
+					});
+				}
+			}, box->lifetime());
+		};
+		request(QString());
 
-		if (current) {
-			box->addButton(rpl::single(u"Сбросить NFT"_q), [=] {
+		if (hasOwn(session)) {
+			box->addButton(rpl::single(u"Убрать NFT из профиля"_q), [=] {
 				removeOwn(session);
-				controller->showToast(u"NFT профиля сброшен"_q);
+				controller->showToast(u"NFT убран из профиля"_q);
 				box->closeBox();
 			});
 		}

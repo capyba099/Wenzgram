@@ -45,7 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_reaction_process.h" // TryAddingPaidReaction.
 #include "window/window_session_controller.h"
 #include "window/section_widget.h"
-#include "wenzgram/wenzgram_profile_nft.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/glare.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -1459,9 +1458,6 @@ bool Element::isHiddenByGroup() const {
 }
 
 bool Element::isHidden() const {
-	if (Wenzgram::ProfileNft::isSyncMessage(data())) {
-		return true;
-	}
 	return isHiddenByGroup();
 }
 
