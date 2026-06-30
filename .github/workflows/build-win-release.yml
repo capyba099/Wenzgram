@@ -394,14 +394,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v0.5.0-release"
-          TITLE="Wenzgram 0.5.0 — Release (Windows x64)"
-          NOTES="Release-сборка Wenzgram с локальными NFT профиля.
+          VERSION_FILE="${TBUILD}/Wenzgram-src/telegram-desktop/Telegram/SourceFiles/wenzgram/wenzgram_version.h"
+          VERSION=$(grep 'inline constexpr auto kVersion' "$VERSION_FILE" | sed 's/.*"\([^"]*\)".*/\1/')
+          TAG=$(grep 'inline constexpr auto kVersionTag' "$VERSION_FILE" | sed 's/.*"\([^"]*\)".*/\1/')
+          TITLE="Wenzgram ${VERSION} — Release (Windows x64)"
+          NOTES="Release-сборка Wenzgram ${VERSION}.
 
-          Новое:
-          - Локальные NFT в профиле (видны пользователям Wenzgram)
-          - Настройка NFT: Настройки → Профиль → Локальный NFT
-          - Синхронизация NFT через скрытые сообщения между клиентами Wenzgram
+          Новое в ${VERSION}:
+          - NFT в профиле из ваших Telegram-подарков (unique gifts)
+          - Кнопка «+» на своём фото в профиле для выбора NFT
+          - NFT виден только вам локально, ничего не отправляется в чаты
+          - Ускоренный CI: кэш библиотек, сборка ~2 часа вместо 4
 
           Также:
           - WenzgramUpdater, локальные обои, удалённые сообщения, защита сессии
@@ -415,6 +418,10 @@ jobs:
 
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" artifact/* --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TITLE" \
+              --notes "$NOTES"
           else
             gh release create "$TAG" artifact/* \
               --repo "$GITHUB_REPOSITORY" \
