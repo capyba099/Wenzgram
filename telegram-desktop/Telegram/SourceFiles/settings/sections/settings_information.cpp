@@ -81,17 +81,6 @@ namespace {
 
 using namespace Builder;
 
-not_null<Ui::SettingsButton*> AddRow(
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> label,
-	rpl::producer<TextWithEntities> value,
-	const QString &copyButton,
-	Fn<void()> edit,
-	IconDescriptor &&descriptor,
-	bool markedValue,
-	Fn<void(not_null<Ui::PopupMenu*>)> menuExtender,
-	const style::icon *copyIcon);
-
 struct InformationHighlightTargets {
 	QPointer<Ui::RpWidget> photo;
 	QPointer<Ui::RpWidget> uploadPhoto;
@@ -353,31 +342,6 @@ void SetupPhoto(
 	}, photo->lifetime());
 }
 
-void SetupProfileNft(
-		not_null<Ui::VerticalLayout*> container,
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> self) {
-	if (!Wenzgram::profileNftEnabled()) {
-		return;
-	}
-	Ui::AddSkip(container);
-	const auto session = &self->session();
-	const auto value = Wenzgram::ProfileNft::ownValue(session) | rpl::map([](
-			const std::optional<Wenzgram::ProfileNft::Entry> &entry) {
-		return TextWithEntities{
-			entry ? entry->title : u"Не выбран"_q,
-		};
-	});
-	const auto button = AddRow(
-		container,
-		rpl::single(u"Локальный NFT"_q),
-		std::move(value),
-		QString(),
-		[=] { Wenzgram::ProfileNft::showManager(controller); },
-		{ &st::menuIconProfile });
-	button->setAttribute(Qt::WA_TransparentForMouseEvents, false);
-}
-
 void ShowMenu(
 		QWidget *parent,
 		const QString &copyButton,
@@ -449,6 +413,31 @@ not_null<Ui::SettingsButton*> AddRow(
 		*forcopy = text.text;
 	}, wrap->lifetime());
 	return wrap;
+}
+
+void SetupProfileNft(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> self) {
+	if (!Wenzgram::profileNftEnabled()) {
+		return;
+	}
+	Ui::AddSkip(container);
+	const auto session = &self->session();
+	const auto value = Wenzgram::ProfileNft::ownValue(session) | rpl::map([](
+			const std::optional<Wenzgram::ProfileNft::Entry> &entry) {
+		return TextWithEntities{
+			entry ? entry->title : u"Не выбран"_q,
+		};
+	});
+	const auto button = AddRow(
+		container,
+		rpl::single(u"Локальный NFT"_q),
+		std::move(value),
+		QString(),
+		[=] { Wenzgram::ProfileNft::showManager(controller); },
+		{ &st::menuIconProfile });
+	button->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 }
 
 void SetupBirthday(
