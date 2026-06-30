@@ -39,8 +39,8 @@ namespace Wenzgram::ProfileNft {
 namespace {
 
 constexpr auto kMagic = quint32(0x575a4e46); // 'WZNF'
-constexpr auto kSyncPrefix = u"\u2063WZ_NFT:"_q;
-constexpr auto kRequestPrefix = u"\u2063WZ_NFT_REQ"_q;
+const auto kSyncPrefix = u"\u2063WZ_NFT:"_q;
+const auto kRequestPrefix = u"\u2063WZ_NFT_REQ"_q;
 constexpr auto kBroadcastLimit = 30;
 constexpr auto kThumbSize = 96;
 
@@ -203,7 +203,10 @@ public:
 	[[nodiscard]] std::optional<Entry> forPeer(PeerId peerId) {
 		ensurePeerLoaded(peerId);
 		const auto i = _peers.find(peerId);
-		return (i != end(_peers)) ? i->second : std::nullopt;
+		if (i != end(_peers)) {
+			return i->second;
+		}
+		return std::nullopt;
 	}
 
 	void setForPeer(PeerId peerId, Entry entry) {

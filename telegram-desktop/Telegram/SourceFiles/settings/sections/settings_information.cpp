@@ -81,6 +81,17 @@ namespace {
 
 using namespace Builder;
 
+not_null<Ui::SettingsButton*> AddRow(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> label,
+	rpl::producer<TextWithEntities> value,
+	const QString &copyButton,
+	Fn<void()> edit,
+	IconDescriptor &&descriptor,
+	bool markedValue = false,
+	Fn<void(not_null<Ui::PopupMenu*>)> menuExtender = nullptr,
+	const style::icon *copyIcon = nullptr);
+
 struct InformationHighlightTargets {
 	QPointer<Ui::RpWidget> photo;
 	QPointer<Ui::RpWidget> uploadPhoto;

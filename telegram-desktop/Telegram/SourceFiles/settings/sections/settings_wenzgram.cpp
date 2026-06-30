@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_main.h"
 #include "lang/lang_keys.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "wenzgram/wenzgram_profile_nft.h"
@@ -256,12 +257,12 @@ void WenzgramSettings::setupContent() {
 	Ui::AddSkip(content);
 	const auto versionWrap = content->add(object_ptr<Ui::FixedHeightWidget>(
 		content,
-		st::settingsSectionTitle.font->height + st::settingsSectionSkip));
+		st::boxLabel.style.font->height + st::settingsThumbSkip));
 	const auto version = Ui::CreateChild<Ui::FlatLabel>(
 		versionWrap,
 		rpl::single(
 			u"Текущая версия: "_q + QLatin1String(Wenzgram::kVersion)),
-		st::settingsSectionTitle);
+		st::boxLabel);
 	version->setAttribute(Qt::WA_TransparentForMouseEvents);
 	versionWrap->widthValue(
 	) | rpl::on_next([=](int width) {

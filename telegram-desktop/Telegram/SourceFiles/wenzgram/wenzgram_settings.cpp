@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
+#include "main/main_session.h"
+#include "window/window_controller.h"
 
 #include <QLocale>
 
@@ -25,10 +27,16 @@ rpl::event_stream<> Changes;
 }
 
 void RefreshDialogsLayout() {
-	Core::App().domain().enumerateAccounts([&](not_null<Main::Account*> account) {
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
 		if (const auto session = account->maybeSession()) {
 			session->data().chatsList()->indexed()->updateHeights(0);
 		}
+	}
+}
+
+void RefreshWindowTitles() {
+	Core::App().enumerateWindows([](not_null<Window::Controller*> window) {
+		window->widget()->updateTitle();
 	});
 }
 
@@ -36,7 +44,7 @@ void ApplySetting(std::string_view key, bool value) {
 	if (key == kLargeEmojiKey) {
 		Core::App().settings().setLargeEmoji(value);
 	} else if (key == kShowBrandingKey) {
-		Core::App().updateWindowTitles();
+		RefreshWindowTitles();
 	} else if (key == kCompactDialogsKey) {
 		RefreshDialogsLayout();
 	}
@@ -137,7 +145,7 @@ void notifySettingsChanged() {
 
 void syncCoreSettings() {
 	Core::App().settings().setLargeEmoji(largeEmoji());
-	Core::App().updateWindowTitles();
+	RefreshWindowTitles();
 	RefreshDialogsLayout();
 }
 

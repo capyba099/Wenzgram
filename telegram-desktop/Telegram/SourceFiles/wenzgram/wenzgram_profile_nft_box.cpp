@@ -97,7 +97,7 @@ void ShowProfileNftBox(not_null<Window::SessionController*> controller) {
 				p.fillRect(widget->rect(), st::boxBg);
 			}
 			if (current) {
-				p.setPen(st::boxLabel->color);
+				p.setPen(st::boxLabel.textFg);
 				p.drawText(
 					widget->rect().adjusted(8, 8, -8, -8),
 					Qt::AlignBottom | Qt::AlignHCenter,
